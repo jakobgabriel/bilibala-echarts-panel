@@ -45,45 +45,66 @@ Grafana's catalog submission flow runs.
 
 ### Release pipeline rework
 
-- **`.github/workflows/release.yml` adopts the canonical Grafana
-  publishing flow.** The matrix build now uses
-  `grafana/plugin-actions/package-plugin@main` for sign + zip (the
-  same action Grafana's docs recommend).
+- **`.github/workflows/release.yml` uses the canonical Grafana
+  publishing flow.** The matrix build calls
+  `grafana/plugin-actions/package-plugin@main` for packaging (and
+  signing, when configured — see below).
 - **Releases auto-fire on every merge to master.** The workflow's
-  primary trigger is `workflow_run` against the `Smoke` workflow on
-  `master` / `main`. When Smoke completes successfully, a `gate` job
+  primary trigger is `push: branches: [master, main]`. A `gate` job
   reads the `version` from `package.json` and checks whether a
   matching `vX.Y.Z` tag already exists. If it does, the workflow
   exits cleanly (no spurious releases on every commit). If the
-  version is new, the build matrix runs and a draft release is
+  version is new, the build matrix runs and the release is
   published. Tag-push (`v*`) and `workflow_dispatch` are kept as
-  manual fallbacks for emergency cuts or re-runs.
-- **Each release is a draft.** The release job uses
-  `softprops/action-gh-release@v2 with draft: true`. The maintainer
-  reviews the assets, edits release notes if needed, then clicks
-  Publish. The draft body includes a copy-pasteable catalog
-  submission walk-through (URL, source URL, SHA1).
-- **Sigstore build provenance attestations** are generated when
-  `GRAFANA_ACCESS_POLICY_TOKEN` is set, via
-  `actions/attest-build-provenance@v3`, providing cryptographic proof
-  that each variant zip came from this repo's CI.
+  manual fallbacks for emergency cuts or re-runs. (An earlier
+  iteration of this same v2.6.0 work tried `workflow_run` against
+  the Smoke workflow as the trigger; that combined with a
+  `secrets.X`-in-step-`if:` expression GitHub's parser rejects
+  blocked *every* trigger including `workflow_dispatch`. Both
+  issues are fixed in v2.6.0.)
+- **Releases auto-publish (not draft).** `softprops/action-gh-release`
+  is configured with `draft: false` and `make_latest: 'true'` so
+  the release is immediately reachable via public download URLs.
+  No manual click required.
+- **Stable `wget`-friendly URL.** The release job uploads each
+  variant zip under both a versioned name (for pinning) AND an
+  unversioned alias for `/releases/latest/download/`:
+  - `community-echarts-panel-2.6.0-echarts5.zip` + `.sha1` (versioned)
+  - `community-echarts-panel-echarts5.zip` + `.sha1` (latest alias)
+  ```sh
+  wget https://github.com/jakobgabriel/bilibala-echarts-panel/releases/latest/download/community-echarts-panel-echarts5.zip
+  ```
+  always pulls the newest published variant. The README's
+  *Install → Quick install* and *Dockerfile* sections use this URL
+  pattern so production dashboards and Dockerfiles never need an
+  edit on each release.
+- **Releases are unsigned by default.** No
+  `GRAFANA_ACCESS_POLICY_TOKEN` repo secret = no `MANIFEST.txt`
+  inside the zip. Grafana loads them with
+  `allow_loading_unsigned_plugins = community-echarts-panel`. To
+  turn on community-tier signing later, add a Grafana access policy
+  token (https://grafana.com/orgs → Access policies → New, scope
+  `plugins:write`) as the `GRAFANA_ACCESS_POLICY_TOKEN` repo
+  secret. The canonical action picks it up automatically; no
+  workflow edit required. Sigstore build-provenance attestation
+  was previously bundled with signing but is dropped to keep the
+  unsigned path simple — easy to re-add as a follow-up once
+  signing is configured.
 - **Two new scripts:**
   - `scripts/prep-variant.sh <4|5>` mutates `package.json` +
-    regenerates `package-lock.json` for the chosen variant. Required
-    because the canonical action runs `npm install` against whatever
-    lockfile it finds; we need the lockfile pinned to the variant's
-    deps before the action starts.
+    regenerates `package-lock.json` for the chosen variant.
+    Required because the canonical action runs `npm install`
+    against whatever lockfile it finds; we need the lockfile
+    pinned to the variant's deps before the action starts.
   - `scripts/build-variant.sh <4|5>` is now a thin wrapper around
-    `prep-variant.sh + npm ci + npm run build + zip` for local-only
-    builds (CI uses the canonical action).
+    `prep-variant.sh + npm ci + npm run build + zip` for
+    local-only builds (CI uses the canonical action).
 - **Cutting a release** is now a normal PR flow — no local tag push:
   ```
   # 1. open a PR that bumps package.json#version + CHANGELOG entry
   # 2. merge to master
-  # 3. Smoke runs, finishes green
-  # 4. Release workflow auto-fires, builds + signs both variants,
-  #    creates draft v<new-version> release
-  # 5. maintainer reviews the draft, clicks Publish
+  # 3. Release workflow auto-fires, builds + publishes both variants
+  # 4. New release lands at /releases/latest/ — wget-able immediately
   ```
 
 ## v2.5.0

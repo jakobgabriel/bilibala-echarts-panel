@@ -75,8 +75,11 @@ allow_loading_unsigned_plugins = community-echarts-panel
 
 ### Quick install (one-liner)
 
+Always-latest URL (auto-resolves to the newest published release):
+
 ```sh
-wget -qO /tmp/p.zip https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.6.0/community-echarts-panel-2.6.0-echarts5.zip \
+wget -qO /tmp/p.zip \
+  https://github.com/jakobgabriel/bilibala-echarts-panel/releases/latest/download/community-echarts-panel-echarts5.zip \
   && sudo unzip -q /tmp/p.zip -d /var/lib/grafana/plugins \
   && rm /tmp/p.zip \
   && sudo systemctl restart grafana-server
@@ -84,19 +87,42 @@ wget -qO /tmp/p.zip https://github.com/jakobgabriel/bilibala-echarts-panel/relea
 
 Swap `-echarts5` → `-echarts4` for the v4 variant.
 
+To pin to a specific release (recommended for production):
+
+```sh
+wget -qO /tmp/p.zip \
+  https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.6.0/community-echarts-panel-2.6.0-echarts5.zip \
+  && sudo unzip -q /tmp/p.zip -d /var/lib/grafana/plugins \
+  && rm /tmp/p.zip
+```
+
+### Dockerfile
+
+```dockerfile
+FROM grafana/grafana:13.0.1
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends wget unzip ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
+RUN wget -qO /tmp/p.zip https://github.com/jakobgabriel/bilibala-echarts-panel/releases/latest/download/community-echarts-panel-echarts5.zip \
+ && unzip -q /tmp/p.zip -d /var/lib/grafana/plugins \
+ && rm /tmp/p.zip
+ENV GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=community-echarts-panel
+USER grafana
+```
+
 ### Path A — `grafana-cli` (with SHA verification)
 
 ```sh
-grafana-cli --pluginUrl https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.6.0/community-echarts-panel-2.6.0-echarts4.zip plugins install community-echarts-panel
+grafana-cli --pluginUrl https://github.com/jakobgabriel/bilibala-echarts-panel/releases/latest/download/community-echarts-panel-echarts4.zip plugins install community-echarts-panel
 sudo systemctl restart grafana-server
 ```
 
-Verify the integrity sidecar first (each release publishes `.sha1` / `.md5` next to the zip):
+Verify the integrity sidecar first (each release publishes a `.sha1` next to the zip):
 
 ```sh
-curl -sLO https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.6.0/community-echarts-panel-2.6.0-echarts4.zip
-curl -sL https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.6.0/community-echarts-panel-2.6.0-echarts4.zip.sha1
-sha1sum community-echarts-panel-2.6.0-echarts4.zip   # compare to the .sha1 contents
+curl -sLO https://github.com/jakobgabriel/bilibala-echarts-panel/releases/latest/download/community-echarts-panel-echarts4.zip
+curl -sL  https://github.com/jakobgabriel/bilibala-echarts-panel/releases/latest/download/community-echarts-panel-echarts4.zip.sha1
+sha1sum community-echarts-panel-echarts4.zip   # compare to the .sha1 contents
 ```
 
 ### Path B — Docker bind mount (dev / CI)
