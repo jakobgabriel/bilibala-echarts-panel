@@ -31,9 +31,14 @@ All notable changes to this project will be documented in this file.
   and its default — is replaced by a `GrafanaTheme2`-derived
   registered theme (`src/grafanaTheme.ts`).
 - README overhauled with prominent attribution to **@Billiballa** as
-  the originator of the plugin, an explicit credits section, and a
-  usage guide with worked examples (bar / pie / heatmap) and
-  screenshot placeholders.
+  the originator of the plugin, an explicit credits section, a new
+  **Compatibility** section showing the panel-edit view (chart on the
+  left, G-ECharts options pane on the right) live-captured from
+  Grafana 11.6.14 / 12.4.3 / 13.0.1, and a usage guide with worked
+  examples (bar / pie / heatmap). The capture pipeline is checked in
+  at `scripts/capture-screenshots.py` (Python Playwright) plus
+  `scripts/provisioning/` and `scripts/dashboards/`, and is fully
+  reproducible from a freshly built `dist/`.
 - Bumped Node engine from `>=22` to `>=24` (matches `.nvmrc`).
 - Smoke matrix split into a **gate** (`11.6.14`, `12.4.3`, `13.0.1` —
   must pass) and an **informational** matrix (`8.5.27`, `9.5.21`,

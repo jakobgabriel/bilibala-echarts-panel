@@ -11,7 +11,7 @@
 ![issues](https://img.shields.io/github/issues-closed/jakobgabriel/bilibala-echarts-panel)
 ![stars](https://img.shields.io/github/stars/jakobgabriel/bilibala-echarts-panel?style=social)
 
-![screenshot](src/img/screenshot.png)
+![hero](src/img/screenshot.png)
 
 ## Origin & credits
 
@@ -23,6 +23,30 @@ This fork's contribution is limited to:
 - making the user-facing API survive the modernization via a transparent compatibility shim (`src/compat.ts`) so `theme.type` and `field.values.buffer` keep working;
 - making charts inherit Grafana's full theme palette via a derived ECharts theme (`src/grafanaTheme.ts`);
 - declaring `aliasIDs: ["bilibala-echarts-panel"]` in `plugin.json` so existing dashboards resolve transparently to this plugin.
+
+## Compatibility
+
+The CI gate runs `@grafana/plugin-validator`, type-check, unit tests, and a smoke load against Grafana **11.6.14**, **12.4.3**, and **13.0.1**. Each panel-edit screenshot below is captured live from a fresh Grafana container of that version against the dashboard at `scripts/dashboards/g-echarts-demo.json` and the same `dist/` artifact that's published in the GitHub Release.
+
+### Grafana 11.6.14
+
+![G-ECharts panel-edit view on Grafana 11.6.14](src/img/usage-edit-grafana-11.png)
+
+### Grafana 12.4.3
+
+![G-ECharts panel-edit view on Grafana 12.4.3](src/img/usage-edit-grafana-12.png)
+
+### Grafana 13.0.1
+
+![G-ECharts panel-edit view on Grafana 13.0.1](src/img/usage-edit-grafana-13.png)
+
+To reproduce the captures locally:
+
+```sh
+npm run build
+PLAYWRIGHT_BROWSERS_PATH=$HOME/.cache/ms-playwright \
+  python3 scripts/capture-screenshots.py
+```
 
 ## Install
 
@@ -52,24 +76,17 @@ The bundled ECharts version was bumped from 4.x to 6.x. Most user-authored `getO
 
 ### 1. Add the panel to a dashboard
 
-![Add panel picker showing G-ECharts](src/img/usage-add-panel.png)
-
-- Open a dashboard → **Add panel** → search for **G-ECharts**.
-- The default chart (Billiballa's original area-line example) renders immediately from any time-series query, with no edits required.
+Open a dashboard → **Add panel** → search for **G-ECharts**. The default chart (Billiballa's original area-line example) renders immediately from any time-series query, with no edits required.
 
 ### 2. Edit the chart options
 
-![Echarts options code editor](src/img/usage-options-editor.png)
+The **Echarts options** editor in the panel options pane is the function body of `(data, theme, echartsInstance, echarts) => { ... }`. The function must `return` an [ECharts option object](https://echarts.apache.org/option.html). `data.series[i].fields[j].values` is a plain array; legacy `.values.buffer` access is also supported via the compat shim (`src/compat.ts`).
 
-- The **Echarts options** editor in the panel options pane is the function body of `(data, theme, echartsInstance, echarts) => { ... }`.
-- The function must `return` an [ECharts option object](https://echarts.apache.org/option.html).
-- `data.series[i].fields[j].values` is a plain array. Legacy `.values.buffer` access is also supported via the compat shim (`src/compat.ts`).
+See the [Compatibility](#compatibility) section above for what the panel-edit view looks like on each supported Grafana major.
 
 ### 3. Worked examples
 
 #### Bar chart from a single time-series query
-
-![Bar chart example](src/img/usage-bar-chart.png)
 
 ```js
 const valueField = data.series[0].fields.find((f) => f.type === 'number');
@@ -85,8 +102,6 @@ return {
 ```
 
 #### Pie chart aggregated across series
-
-![Pie chart example](src/img/usage-pie-chart.png)
 
 ```js
 return {
@@ -125,12 +140,7 @@ return {
 
 ### 4. Follow Grafana theme
 
-| Dark theme | Light theme |
-| --- | --- |
-| ![Dark theme](src/img/usage-theme-dark.png) | ![Light theme](src/img/usage-theme-light.png) |
-
-- Toggle **Follow Grafana Theme** in the panel options.
-- The chart inherits Grafana's full theme palette: series colors come from `theme.visualization.palette`; text, tooltip, axis, and grid-line colors come from `theme.colors.*`. Custom themes shipped in newer Grafana versions (e.g. high-contrast) are picked up automatically.
+Toggle **Follow Grafana Theme** in the panel options. The chart inherits Grafana's full theme palette: series colors come from `theme.visualization.palette`; text, tooltip, axis, and grid-line colors come from `theme.colors.*` and `theme.typography`. Custom themes shipped in newer Grafana versions (e.g. high-contrast) are picked up automatically.
 
 ### 5. Side effects (event listeners, intervals)
 

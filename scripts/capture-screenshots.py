@@ -1,155 +1,180 @@
-"""Capture G-ECharts panel screenshots from a running Grafana instance.
+"""Capture G-ECharts panel-edit screenshots across Grafana v11/v12/v13.
+
+For each Grafana major, the script:
+  1. Boots `grafana/grafana:<patch>` with the local dist mounted as the
+     g-echarts plugin and the demo dashboard provisioned.
+  2. Creates the TestData datasource (uid=`testdata`) via Grafana's HTTP API.
+  3. Opens the panel-edit view of the bar-chart panel (panel id 2).
+  4. Screenshots the full 1600×1000 viewport — chart on the left,
+     G-ECharts options pane (Follow Theme toggle + Echarts options
+     Monaco editor) on the right.
+  5. Writes `src/img/usage-edit-grafana-<major>.png`.
+  6. Stops + removes the container.
 
 Prerequisites:
-- A running Grafana 12+ at $GRAFANA_URL (default http://localhost:3000)
-  with anonymous Admin access (GF_AUTH_ANONYMOUS_ENABLED=true,
-  GF_AUTH_ANONYMOUS_ORG_ROLE=Admin), the g-echarts plugin loaded
-  (GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=g-echarts), a TestData
-  datasource with uid "testdata", and the dashboard at
-  scripts/provisioning/dashboards/g-echarts-demo.json provisioned
-  (uid `g-echarts-demo`, panels 1=default, 2=bar, 3=pie).
-- Python playwright installed: pip install playwright && playwright install chromium
+  - Docker daemon running.
+  - The plugin built (`npm run build` so dist/ exists).
+  - Python playwright + a chromium binary reachable at $PLAYWRIGHT_BROWSERS_PATH.
 
-Output:
-- Six PNGs written to $OUT (default src/img/) named usage-*.png.
+Run:
+  PLAYWRIGHT_BROWSERS_PATH=/path/to/ms-playwright \
+  python3 scripts/capture-screenshots.py
 """
 
+import json
 import os
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from pathlib import Path
 from playwright.sync_api import sync_playwright
 
+REPO = Path(__file__).resolve().parent.parent
 GRAFANA = os.environ.get("GRAFANA_URL", "http://localhost:3000")
 DASH_UID = "g-echarts-demo"
-OUT = os.environ.get("OUT", "src/img")
+OUT = Path(os.environ.get("OUT", REPO / "src" / "img"))
+
+VERSIONS = [
+    ("11", "11.6.14"),
+    ("12", "12.4.3"),
+    ("13", "13.0.1"),
+]
 
 
-def wait_for_canvas(page, timeout_ms=15000):
-    """Wait for the ECharts <canvas> inside the visible panel to render."""
-    page.wait_for_selector("canvas", state="visible", timeout=timeout_ms)
-    # ECharts paints in animation frames; give it a beat
-    page.wait_for_timeout(1500)
+def http_get(url, timeout=2):
+    req = urllib.request.Request(url)
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return r.status, r.read()
 
 
-def screenshot_panel(page, panel_id, out_path, theme="dark"):
-    """Open d-solo (single-panel kiosk view) and screenshot the panel area."""
-    url = (
-        f"{GRAFANA}/d-solo/{DASH_UID}/g-echarts-demo"
-        f"?orgId=1&panelId={panel_id}&theme={theme}"
-        f"&from=now-6h&to=now&__feature.dashboardSceneSolo=true"
+def http_post(url, payload):
+    data = json.dumps(payload).encode()
+    req = urllib.request.Request(
+        url,
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST",
     )
-    page.set_viewport_size({"width": 900, "height": 520})
-    page.goto(url, wait_until="networkidle")
-    wait_for_canvas(page)
-    page.screenshot(path=out_path, full_page=False)
-    print(f"  saved {out_path}")
+    with urllib.request.urlopen(req, timeout=10) as r:
+        return r.status, r.read()
 
 
-def screenshot_dashboard(page, out_path, theme="dark"):
-    page.set_viewport_size({"width": 1600, "height": 1000})
-    page.goto(
-        f"{GRAFANA}/d/{DASH_UID}/g-echarts-demo?orgId=1&theme={theme}&kiosk",
-        wait_until="networkidle",
-    )
-    wait_for_canvas(page)
-    page.screenshot(path=out_path, full_page=False)
-    print(f"  saved {out_path}")
-
-
-def screenshot_panel_picker(page, out_path):
-    """Visualization picker showing G-ECharts."""
-    page.set_viewport_size({"width": 1600, "height": 1000})
-    # Open the dashboard, then the bar panel's edit view
-    page.goto(
-        f"{GRAFANA}/d/{DASH_UID}/g-echarts-demo?orgId=1&editPanel=2&theme=dark",
-        wait_until="networkidle",
-    )
-    wait_for_canvas(page)
-    # Click the visualization-picker dropdown — Grafana 12 puts the current viz
-    # type as a button near the top of the right pane.
-    candidates = [
-        'button:has-text("G-ECharts")',
-        'button:has-text("Visualization")',
-        '[aria-label*="visualization" i]',
-        '[data-testid*="visualization" i]',
-    ]
-    opened = False
-    for sel in candidates:
+def wait_for_health(timeout_s=60):
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
         try:
-            el = page.locator(sel).first
-            if el.is_visible(timeout=1000):
-                el.click()
-                opened = True
-                break
-        except Exception:
-            continue
-    if not opened:
-        print("  WARN: could not find visualization picker button; "
-              "saving plain edit view instead")
-    page.wait_for_timeout(1500)
-    # Type into the search if possible
+            status, _ = http_get(f"{GRAFANA}/api/health")
+            if status == 200:
+                return
+        except (urllib.error.URLError, ConnectionError):
+            pass
+        time.sleep(1)
+    raise RuntimeError(f"Grafana not healthy within {timeout_s}s")
+
+
+def ensure_datasource():
     try:
-        search = page.get_by_placeholder("Search for...", exact=False).first
-        if search.is_visible(timeout=1000):
-            search.fill("g-echarts")
-            page.wait_for_timeout(800)
-    except Exception:
-        pass
-    page.screenshot(path=out_path, full_page=False)
-    print(f"  saved {out_path}")
+        http_post(
+            f"{GRAFANA}/api/datasources",
+            {
+                "name": "TestData",
+                "type": "grafana-testdata-datasource",
+                "uid": "testdata",
+                "access": "proxy",
+                "isDefault": True,
+            },
+        )
+    except urllib.error.HTTPError as e:
+        # 409 = already exists; fine
+        if e.code != 409:
+            raise
 
 
-def screenshot_options_editor(page, out_path):
-    """Panel edit view focused on the right-hand options pane."""
+def wait_for_dashboard(timeout_s=20):
+    deadline = time.time() + timeout_s
+    while time.time() < deadline:
+        try:
+            status, body = http_get(
+                f"{GRAFANA}/api/search?query=g-echarts", timeout=2
+            )
+            if status == 200 and DASH_UID.encode() in body:
+                return
+        except (urllib.error.URLError, ConnectionError):
+            pass
+        time.sleep(1)
+    raise RuntimeError(f"Dashboard {DASH_UID} not provisioned in {timeout_s}s")
+
+
+def docker(*args, check=True):
+    return subprocess.run(["docker", *args], check=check, capture_output=True, text=True)
+
+
+def boot_grafana(version_tag, container_name):
+    docker("rm", "-f", container_name, check=False)
+    docker(
+        "run", "-d",
+        "--name", container_name,
+        "-p", "3000:3000",
+        "-v", f"{REPO}/dist:/var/lib/grafana/plugins/g-echarts:ro",
+        "-v", f"{REPO}/scripts/provisioning:/etc/grafana/provisioning:ro",
+        "-v", f"{REPO}/scripts/dashboards:/var/lib/grafana/dashboards:ro",
+        "-e", "GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=g-echarts",
+        "-e", "GF_AUTH_ANONYMOUS_ENABLED=true",
+        "-e", "GF_AUTH_ANONYMOUS_ORG_ROLE=Admin",
+        "-e", "GF_LOG_LEVEL=warn",
+        f"grafana/grafana:{version_tag}",
+    )
+    wait_for_health()
+    ensure_datasource()
+    wait_for_dashboard()
+
+
+def stop_grafana(container_name):
+    docker("rm", "-f", container_name, check=False)
+
+
+def capture_edit_view(page, out_path):
     page.set_viewport_size({"width": 1600, "height": 1000})
     page.goto(
         f"{GRAFANA}/d/{DASH_UID}/g-echarts-demo?orgId=1&editPanel=2&theme=dark",
         wait_until="networkidle",
+        timeout=45000,
     )
-    wait_for_canvas(page)
-    # Try to scroll the options pane to the "Echarts options" code editor
+    page.wait_for_selector("canvas", state="visible", timeout=20000)
+    # ECharts paints in animation frames; let layout settle
+    page.wait_for_timeout(2000)
+    # Best-effort: scroll right pane to the "Echarts options" group so the
+    # Monaco editor is visible.
     try:
-        page.get_by_text("Echarts options", exact=False).first.scroll_into_view_if_needed(timeout=2000)
+        page.get_by_text("Echarts options", exact=False).first \
+            .scroll_into_view_if_needed(timeout=2000)
     except Exception:
         pass
     page.wait_for_timeout(800)
-    page.screenshot(path=out_path, full_page=False)
+    page.screenshot(path=str(out_path))
     print(f"  saved {out_path}")
 
 
 def main():
-    os.makedirs(OUT, exist_ok=True)
+    OUT.mkdir(parents=True, exist_ok=True)
     with sync_playwright() as p:
         browser = p.chromium.launch(args=["--no-sandbox"])
-        ctx = browser.new_context(
-            viewport={"width": 1600, "height": 1000},
-            device_scale_factor=1,
-        )
+        ctx = browser.new_context(viewport={"width": 1600, "height": 1000})
         page = ctx.new_page()
-
-        # Grafana boot can finish before the plugin is ready in the frontend
-        # asset map; warm the assets.
-        page.goto(f"{GRAFANA}/login", wait_until="networkidle")
-        page.wait_for_timeout(1500)
-
-        print("• bar chart (dark)")
-        screenshot_panel(page, 2, f"{OUT}/usage-bar-chart.png", theme="dark")
-
-        print("• pie chart (dark)")
-        screenshot_panel(page, 3, f"{OUT}/usage-pie-chart.png", theme="dark")
-
-        print("• default chart, theme=dark")
-        screenshot_panel(page, 2, f"{OUT}/usage-theme-dark.png", theme="dark")
-
-        print("• default chart, theme=light")
-        screenshot_panel(page, 2, f"{OUT}/usage-theme-light.png", theme="light")
-
-        print("• panel picker")
-        screenshot_panel_picker(page, f"{OUT}/usage-add-panel.png")
-
-        print("• options editor")
-        screenshot_options_editor(page, f"{OUT}/usage-options-editor.png")
-
+        for major, tag in VERSIONS:
+            container = f"g-echarts-shots-{major}"
+            print(f"• Grafana {tag}")
+            boot_grafana(tag, container)
+            try:
+                capture_edit_view(
+                    page, OUT / f"usage-edit-grafana-{major}.png"
+                )
+            finally:
+                stop_grafana(container)
         browser.close()
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main() or 0)
