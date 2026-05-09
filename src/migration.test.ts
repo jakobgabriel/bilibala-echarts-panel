@@ -28,10 +28,10 @@ const legacyPanelOptionsWithExtras = {
 };
 
 describe('v8.5.3 dashboard migration', () => {
-  it('legacy panel options shape contains every current SimpleOptions key', () => {
-    const currentKeys = Object.keys(defaults) as Array<keyof SimpleOptions>;
-    for (const key of currentKeys) {
-      expect(legacyPanelOptions).toHaveProperty(key);
+  it('every legacy panel options key still exists in the current SimpleOptions shape', () => {
+    const legacyKeys = Object.keys(legacyPanelOptions);
+    for (const key of legacyKeys) {
+      expect(defaults).toHaveProperty(key);
     }
   });
 

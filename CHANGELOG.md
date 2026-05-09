@@ -2,6 +2,64 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Highlights
+
+- **Maps no longer auto-register.** Every JSON in `src/map/` was
+  previously eagerly registered with ECharts at panel init via a
+  `require.context` loop, even when no chart referenced it. The loop is
+  gone; maps live as separate static files under
+  `/public/plugins/community-echarts-panel/map/<name>.json` and you opt
+  in via the new `loadMap(name)` helper, passed as the 5th positional
+  argument to your `getOption` body. **Migration**: dashboards that
+  referenced `geo: { map: 'china' }` directly now need
+  `await loadMap('china');` before the return.
+- **Hybrid map set + remote opt-in.** A new `scripts/fetch-maps.sh`
+  refreshes a curated GeoJSON set (`world`, `usa`, `germany`, `france`,
+  `united-kingdom`, `italy`, `spain`, `brazil`, `india`, `japan`) from
+  public-domain / permissively-licensed sources; the resulting JSONs are
+  committed to `src/map/` and shipped at runtime alongside the existing
+  `china.json`. Two new panel options govern the remote fallback:
+  `Allow remote maps` (default off, for air-gapped installs) and
+  `Remote map base URL` (default jsDelivr). Attribution lives in
+  `src/map/SOURCES.md`.
+- **Editor: lint + autocomplete enabled.** JSHint markers now annotate
+  the gutter as you type, and **Ctrl-Space** opens an autocomplete popup
+  scoped to `data` / `theme` / `echartsInstance` / `echarts` / `loadMap`.
+- **Async `getOption` bodies.** The body is wrapped in an async IIFE, so
+  `await loadMap(...)` (or any other promise) works. Synchronous
+  `return { ... }` is unchanged.
+- **Friendlier error overlays.** Returning `undefined` or a non-object
+  now shows a specific message instead of silently no-op'ing. Compile
+  errors are distinguished from runtime errors. Upstream query errors
+  (`data.state === 'Error'`) get their own overlay so the panel stops
+  silently masking failed queries.
+
+### Performance
+
+- `lodash/debounce` is cherry-picked instead of `from 'lodash'`.
+- The debounced `resetOption` is now a single stable instance (previously
+  it was rebuilt on every render, defeating the 150 ms window).
+- The compiled `new Function` is memoized per `getOption` source; recompiling
+  on every data tick is gone.
+- `buildEChartsTheme` is memoized; the four axis styles share one object;
+  `chart.clear()` immediately followed by `setOption` was redundant and
+  has been replaced with `setOption(option, true)`.
+- Module-scoped CSS hoisted out of the component body.
+
+### Build / CI
+
+- New `dist/module.js` size guardrail in the Smoke workflow (1.7 MB hard
+  cap; failing build if the bundle regresses).
+- New GitHub Pages workflow (`.github/workflows/docs.yml`) builds and
+  deploys an mkdocs-material single-page site from `docs/index.md`.
+
+### Deps
+
+- `jshint` added (used by the CodeMirror lint addon at runtime).
+- `@types/jshint` added to `devDependencies`.
+
 ## v2.6.0
 
 **Breaking**: plugin id renamed `g-echarts` → `community-echarts-panel`,

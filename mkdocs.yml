@@ -1,0 +1,39 @@
+site_name: Community ECharts panel
+site_description: A maintained Apache ECharts panel for Grafana 11–13
+site_url: https://jakobgabriel.github.io/bilibala-echarts-panel/
+repo_url: https://github.com/jakobgabriel/bilibala-echarts-panel
+repo_name: jakobgabriel/bilibala-echarts-panel
+edit_uri: edit/master/docs/
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - navigation.anchorpoint
+    - navigation.top
+    - search.suggest
+  palette:
+    - media: '(prefers-color-scheme: dark)'
+      scheme: slate
+      primary: indigo
+      accent: indigo
+    - media: '(prefers-color-scheme: light)'
+      scheme: default
+      primary: indigo
+      accent: indigo
+
+nav:
+  - Home: index.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - toc:
+      permalink: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.details
+
+plugins:
+  - search

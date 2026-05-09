@@ -246,7 +246,42 @@ return { /* … */ };
 
 ### 6. Custom maps
 
-Drop `YourMap.json` into `src/map/`, run `npm run build`, and the panel auto-registers it via `echarts.registerMap('YourMap', …)`. Reference it in your chart with `geo: { map: 'YourMap' }`. (The auto-registration loop at `src/SimplePanel.tsx:14-25` is Billiballa's original — unchanged in this fork.)
+Maps are no longer bundled into `module.js`. They ship as separate JSON
+files under `/public/plugins/community-echarts-panel/map/` and you opt in
+via the new `loadMap(name)` helper, which is passed as the 5th positional
+argument to your `getOption` body:
+
+```js
+await loadMap('world');
+return {
+  geo: { map: 'world', roam: true },
+  series: [{ type: 'map', map: 'world', data: [/* … */] }],
+};
+```
+
+Bundled names: `china`, `world`, `usa`, `germany`, `france`,
+`united-kingdom`, `italy`, `spain`, `brazil`, `india`, `japan`. Sources
+and licenses are in [`src/map/SOURCES.md`](./src/map/SOURCES.md);
+maintainers refresh them with `scripts/fetch-maps.sh`.
+
+To bring your own map: drop `YourMap.json` into `src/map/`, run
+`npm run build`, then call `await loadMap('YourMap')`. Webpack's
+CopyWebpackPlugin will copy it to `dist/map/`.
+
+If your dashboard needs a region the bundle doesn't ship, toggle
+**Allow remote maps** in panel options. `loadMap()` then falls back to
+`{remoteMapBaseUrl}/<name>.json` (default jsDelivr) when the local fetch
+404s. Off by default for air-gapped Grafana installs.
+
+> **Migrating from the eager-registration behavior**: dashboards
+> previously written against the upstream `geo: { map: 'china' }` need a
+> one-liner prepended to their `getOption`: `await loadMap('china');`.
+> The default function body in this fork now uses `field.values`
+> directly; the legacy `.values.buffer` access pattern still works via
+> the compat shim (`src/compat.ts`) for saved panels.
+
+For a hosted reference and runtime cookbook, see the docs site:
+**https://jakobgabriel.github.io/bilibala-echarts-panel/**.
 
 ## Develop
 
