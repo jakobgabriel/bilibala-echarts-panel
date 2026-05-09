@@ -50,15 +50,24 @@ PLAYWRIGHT_BROWSERS_PATH=$HOME/.cache/ms-playwright \
 
 ## Install
 
-This plugin is distributed as a GitHub Release zip. The Grafana plugin id is `g-echarts`. **Requires Grafana >= 11.** (Grafana 10 is EOL and rejects the `aliasIDs` field that powers transparent dashboard migration; users on 10.x can stay on the upstream `bilibala-echarts-panel` until they upgrade.)
+The Grafana plugin id is `g-echarts`. The plugin is **not** in the official Grafana catalog (the `grafana-` prefix is reserved by Grafana Labs for first-party plugins, so even a fork named `grafana-echarts` would be rejected; this fork picked the short brandable id `g-echarts` and distributes via GitHub Releases).
 
-```sh
-grafana-cli --pluginUrl https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.4.0/g-echarts.zip plugins install g-echarts
-```
+**Requires Grafana >= 11.** (Grafana 10 is EOL and rejects the `aliasIDs` field that powers transparent dashboard migration; users on 10.x can stay on the upstream `bilibala-echarts-panel` until they upgrade.)
 
-Or unpack the zip into `/var/lib/grafana/plugins/g-echarts` and restart Grafana.
+### Pick an ECharts variant
 
-The plugin is unsigned (community-tier signing); allow it explicitly:
+Each tagged release ships **two signed zips** corresponding to the bundled ECharts major. Both share the same plugin id, the same `plugin.json` schema, and the same `aliasIDs`, so dashboards are interchangeable across variants — but **user-authored `getOption` code can break** at the v4 → v5 boundary (e.g. `series[].lineStyle.normal` was removed in v5). Pick the variant that matches your existing chart code; switching later is a re-install.
+
+| Bundled ECharts | Asset | Best for |
+|---|---|---|
+| 4.9 (default) | `g-echarts-2.4.0-echarts4.zip` | Direct upgrade from upstream `bilibala-echarts-panel`; existing v8.5.x dashboards |
+| 5.x           | `g-echarts-2.4.0-echarts5.zip` | New panels, modern ECharts API |
+
+ECharts 6 is intentionally not bundled — at the time of release the add-on ecosystem (`echarts-gl`, `echarts-liquidfill`, `echarts-wordcloud`) had not yet shipped v6-compatible majors.
+
+### Required Grafana setting
+
+The plugin is community-tier signed (not catalog-signed); allow it explicitly:
 
 ```ini
 # grafana.ini
@@ -66,11 +75,47 @@ The plugin is unsigned (community-tier signing); allow it explicitly:
 allow_loading_unsigned_plugins = g-echarts
 ```
 
+### Path A — `grafana-cli` (simplest)
+
+```sh
+grafana-cli --pluginUrl https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.4.0/g-echarts-2.4.0-echarts4.zip plugins install g-echarts
+sudo systemctl restart grafana-server
+```
+
+Verify the SHA256 first (each release also publishes `<asset>.sha256`):
+
+```sh
+curl -sLO https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.4.0/g-echarts-2.4.0-echarts4.zip
+curl -sLO https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.4.0/g-echarts-2.4.0-echarts4.zip.sha256
+sha256sum -c g-echarts-2.4.0-echarts4.zip.sha256
+```
+
+### Path B — manual unzip (no tooling)
+
+```sh
+curl -sLO https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.4.0/g-echarts-2.4.0-echarts4.zip
+sudo unzip -o g-echarts-2.4.0-echarts4.zip -d /var/lib/grafana/plugins/
+sudo systemctl restart grafana-server
+```
+
+The zip extracts as `g-echarts/` so the final plugin path is `/var/lib/grafana/plugins/g-echarts/`.
+
+### Path C — Docker bind mount (dev / CI)
+
+```sh
+docker run -d -p 3000:3000 \
+  -v /path/to/g-echarts:/var/lib/grafana/plugins/g-echarts:ro \
+  -e GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=g-echarts \
+  grafana/grafana:13.0.1
+```
+
+This is the path `scripts/capture-screenshots.py` uses; the plugin is loaded from the host filesystem, so iteration is `npm run build` (or `scripts/build-variant.sh 5`) → restart container.
+
 ## Migrating from `bilibala-echarts-panel`
 
 If you have dashboards from a Grafana 8.5.x instance that used Billiballa's original `bilibala-echarts-panel`, **no manual edit is needed on Grafana 11+**. This plugin declares `aliasIDs: ["bilibala-echarts-panel", "grafana-echarts"]` in its `plugin.json`, so Grafana transparently resolves panels with the legacy `"type": "bilibala-echarts-panel"` to `g-echarts`. The stored panel options (`followTheme`, `getOption`, …) deserialize cleanly into the modern `SimpleOptions` shape (asserted by `src/migration.test.ts`).
 
-The bundled ECharts version was bumped from 4.x to 6.x. Most user-authored `getOption` code is data-driven and unaffected, but if your chart used the legacy `series[].lineStyle.normal` / `series[].itemStyle.normal` syntax (deprecated in ECharts 4, removed in 5), flatten it: `series[].lineStyle` / `series[].itemStyle`.
+The variant zip you pick at install time decides which ECharts major your charts run against. The default `g-echarts-*-echarts4.zip` ships ECharts 4.9 — the same major upstream `bilibala-echarts-panel` shipped — so any `getOption` code from a Grafana 8.5.x dashboard runs unchanged. If you switch to the `-echarts5.zip` variant and your chart used the legacy `series[].lineStyle.normal` / `series[].itemStyle.normal` syntax (deprecated in ECharts 4, removed in 5), flatten it: `series[].lineStyle` / `series[].itemStyle`.
 
 ## Usage
 

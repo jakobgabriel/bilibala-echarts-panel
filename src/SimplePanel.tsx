@@ -2,7 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { PanelProps } from '@grafana/data';
 import { useTheme2 } from '@grafana/ui';
 import { debounce } from 'lodash';
-import echarts from 'echarts';
+import * as echartsNs from 'echarts';
+// ECharts 4 ships a default export; v5+ ships only a namespace. The shim
+// makes both work so the same source compiles against either variant.
+const echarts: typeof echartsNs = (echartsNs as { default?: typeof echartsNs }).default ?? echartsNs;
 import { css, cx } from '@emotion/css';
 import { SimpleOptions, funcParams } from './types';
 import { shimData, shimTheme } from './compat';

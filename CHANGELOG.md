@@ -43,13 +43,35 @@ All notable changes to this project will be documented in this file.
 - Smoke matrix split into a **gate** (`11.6.14`, `12.4.3`, `13.0.1` —
   must pass) and an **informational** matrix (`8.5.27`, `9.5.21`,
   `10.4.19` — `continue-on-error: true`).
-
-ECharts 5→6 migration note (also applies if you are coming from the
-Grafana 8.5 era): if your `getOption` body uses the legacy
-`series[].lineStyle.normal` / `series[].itemStyle.normal` syntax
-(deprecated in ECharts 4, removed in 5), flatten it:
-`series[].lineStyle` / `series[].itemStyle`. The vast majority of
-chart code is data-driven and unaffected.
+- **Two ECharts variants per release.** The release pipeline now
+  publishes two signed zips per tag: `g-echarts-<version>-echarts4.zip`
+  (default — bundles ECharts 4.9, the same major upstream
+  `bilibala-echarts-panel` shipped) and `g-echarts-<version>-echarts5.zip`
+  (bundles ECharts 5.6 + the matching add-on majors). Both share the
+  same plugin id, schema, and `aliasIDs`, so dashboards are
+  interchangeable; the choice only matters for user-authored
+  `getOption` code that targets a specific ECharts API. ECharts 6 is
+  intentionally not bundled — at the time of this release the add-on
+  ecosystem (`echarts-gl`, `echarts-liquidfill`, `echarts-wordcloud`)
+  had not shipped v6-compatible majors. The `package.json` dep stays
+  on `^4.9.0` so local `npm install` produces a working v4 build; the
+  v5 variant is built in CI via `scripts/build-variant.sh`.
+- **`echarts` import is now cross-version-safe.** `src/SimplePanel.tsx`
+  switched from a default import (`import echarts from 'echarts'`,
+  v4-only) to a namespace import with a `.default` shim, so the same
+  source compiles against the v4 or v5 variant.
+- **Renovate auto-tracks Grafana versions.** A `renovate.json` config
+  watches the smoke matrix (via `# renovate:` comments scoped to the
+  gate matrix only — the EOL informational matrix is left alone) and
+  the `@grafana/*` npm deps. Patch bumps to `grafana/grafana` are
+  marked for auto-merge once CI is green; minor / major remain manual.
+  The four ECharts ecosystem packages are explicitly disabled in
+  Renovate because `scripts/build-variant.sh` is the source of truth
+  for those pins.
+- README **Install** section restructured. Three paths are now
+  documented (`grafana-cli --pluginUrl`, manual unzip, Docker bind
+  mount), each with the variant zip URL and a SHA256-verification
+  snippet.
 
 The user-visible chart function signature `(data, theme,
 echartsInstance, echarts)` is unchanged. `theme.type` and

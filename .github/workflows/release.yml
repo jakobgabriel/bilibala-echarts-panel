@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build echarts${{ matrix.echarts }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        echarts: ["4", "5"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.x
+          cache: npm
+
+      - run: npm ci
+      - run: npx eslint src
+      - run: npm run typecheck
+      - run: npm run test:ci
+      - run: scripts/build-variant.sh ${{ matrix.echarts }}
+
+      - name: Sign and re-package
+        run: |
+          # @grafana/sign-plugin signs dist/ in place; re-package after
+          # so the variant zip contains the signed MANIFEST.txt.
+          npx --yes @grafana/sign-plugin@latest
+          PLUGIN_ID=$(node -p "require('./dist/plugin.json').id")
+          VERSION=$(node -p "require('./dist/plugin.json').info.version")
+          ARTIFACT="${PLUGIN_ID}-${VERSION}-echarts${{ matrix.echarts }}.zip"
+          rm -f "$ARTIFACT" "$ARTIFACT.sha256"
+          rm -rf _pkg
+          mkdir -p _pkg
+          cp -r dist "_pkg/${PLUGIN_ID}"
+          (cd _pkg && zip -qr "../${ARTIFACT}" "${PLUGIN_ID}")
+          rm -rf _pkg
+          sha256sum "$ARTIFACT" > "${ARTIFACT}.sha256"
+        env:
+          GRAFANA_ACCESS_POLICY_TOKEN: ${{ secrets.GRAFANA_ACCESS_POLICY_TOKEN }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zip-echarts${{ matrix.echarts }}
+          path: |
+            g-echarts-*-echarts${{ matrix.echarts }}.zip
+            g-echarts-*-echarts${{ matrix.echarts }}.zip.sha256
+          retention-days: 7
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          fail_on_unmatched_files: true
+          generate_release_notes: true

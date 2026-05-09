@@ -37,3 +37,4 @@ e2e-results/
 
 *.zip
 *.md5
+*.zip.sha256
