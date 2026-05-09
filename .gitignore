@@ -31,5 +31,9 @@ e2e-results/
 # Editors
 .idea
 
+# Lint/test caches
+.eslintcache
+.swc/
+
 *.zip
 *.md5

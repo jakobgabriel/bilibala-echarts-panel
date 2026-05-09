@@ -10,23 +10,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js environment
-        uses: actions/setup-node@v2.1.2
+        uses: actions/setup-node@v4
         with:
-          node-version: 12.x
+          node-version: 22.x
+          cache: npm
 
       - name: Install dependencies
-        run: yarn install
+        run: npm ci
+
+      - name: Lint
+        run: npx eslint src
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm run test:ci
 
       - name: Build plugin
-        run: yarn build
+        run: npm run build
 
       - name: Sign plugin
-        run: yarn run grafana-toolkit plugin:sign --signatureType community
+        run: npx --yes @grafana/sign-plugin@latest
         env:
-          GRAFANA_API_KEY: ${{ secrets.GRAFANA_API_KEY }} # Requires a Grafana API key from Grafana.com.
+          GRAFANA_ACCESS_POLICY_TOKEN: ${{ secrets.GRAFANA_ACCESS_POLICY_TOKEN }}
 
       - name: Get plugin information
         run: |
