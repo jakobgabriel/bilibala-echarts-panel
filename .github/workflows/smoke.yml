@@ -14,8 +14,17 @@ env:
 
 jobs:
   build:
-    name: Build
+    # Build + test + validate each ECharts variant in parallel. v5 has
+    # no CI coverage outside the release pipeline otherwise; without
+    # this matrix a v5-only regression (e.g. an ECharts API removal
+    # the namespace shim doesn't catch) would only surface at tag-push
+    # time. Same prep script as the release workflow uses.
+    name: Build echarts${{ matrix.echarts }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        echarts: ["4", "5"]
     steps:
       - uses: actions/checkout@v4
 
@@ -23,6 +32,9 @@ jobs:
         with:
           node-version: 24.x
           cache: npm
+
+      - name: Pin ECharts ${{ matrix.echarts }} variant
+        run: scripts/prep-variant.sh ${{ matrix.echarts }}
 
       - run: npm ci
       - run: npx eslint src
@@ -36,12 +48,12 @@ jobs:
       - name: Upload built plugin
         uses: actions/upload-artifact@v4
         with:
-          name: dist
+          name: dist-echarts${{ matrix.echarts }}
           path: dist
           retention-days: 1
 
   smoke:
-    name: Grafana ${{ matrix.grafana }}
+    name: Grafana ${{ matrix.grafana }} / echarts${{ matrix.echarts }}
     needs: build
     runs-on: ubuntu-latest
     strategy:
@@ -54,13 +66,14 @@ jobs:
           - "12.4.3"
           # renovate: datasource=docker depName=grafana/grafana
           - "13.0.1"
+        echarts: ["4", "5"]
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download built plugin
+      - name: Download echarts${{ matrix.echarts }} dist
         uses: actions/download-artifact@v4
         with:
-          name: dist
+          name: dist-echarts${{ matrix.echarts }}
           path: dist
 
       - name: Run smoke test against grafana/grafana:${{ matrix.grafana }}
@@ -68,9 +81,9 @@ jobs:
 
   smoke-informational:
     # Plugin's declared floor is Grafana 11. These EOL versions are kept
-    # as a "does the build still happen to load?" signal only.
-    # 10.x rejects aliasIDs in plugin.json and will fail; that's expected.
-    name: Grafana ${{ matrix.grafana }} (informational)
+    # as a "does the build still happen to load?" signal only. v4 only
+    # — v5 add-on majors are unlikely to load on EOL Grafana hosts.
+    name: Grafana ${{ matrix.grafana }} (informational, echarts4)
     needs: build
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -84,10 +97,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download built plugin
+      - name: Download echarts4 dist
         uses: actions/download-artifact@v4
         with:
-          name: dist
+          name: dist-echarts4
           path: dist
 
       - name: Run smoke test against grafana/grafana:${{ matrix.grafana }}

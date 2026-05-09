@@ -1,15 +1,27 @@
 name: Release
 
+# Canonical Grafana publishing flow. Fires only on a `vX.Y.Z` tag push
+# from master (per "always release from master"). Cuts a new release:
+#
+#   git checkout master
+#   git pull origin master
+#   npm version 2.6.0 --no-git-tag-version
+#   git commit -am "chore(release): v2.6.0"
+#   git tag -a v2.6.0 -m "v2.6.0"
+#   git push origin master --follow-tags
+#
+# The workflow runs the canonical grafana/plugin-actions/package-plugin
+# action twice in a build matrix (one per ECharts variant), renames the
+# canonical zip to add the `-echarts<major>` suffix, validates each
+# variant against @grafana/plugin-validator, attests the build via
+# Sigstore, and uploads everything to one draft GitHub Release. The
+# draft is what the maintainer points the Grafana plugin catalog
+# submission form at.
+
 on:
   push:
     tags:
       - 'v*'
-    branches:
-      # Allow the release to fire from the development branch when the
-      # head commit is a `chore(release): vX.Y.Z` commit. The job-level
-      # `if` below gates the actual publish so unrelated pushes to this
-      # branch don't accidentally re-publish.
-      - claude/echarts-grafana-13-upgrade-KBMct
   workflow_dispatch:
 
 env:
@@ -17,14 +29,12 @@ env:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   build:
     name: Build echarts${{ matrix.echarts }}
-    if: |
-      startsWith(github.ref, 'refs/tags/v') ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'chore(release):'))
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -33,85 +43,94 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24.x
-          cache: npm
+      - name: Pin ECharts ${{ matrix.echarts }} variant
+        run: scripts/prep-variant.sh ${{ matrix.echarts }}
 
-      - run: npm ci
-      - run: npx eslint src
-      - run: npm run typecheck
-      - run: npm run test:ci
-      - run: scripts/build-variant.sh ${{ matrix.echarts }}
+      - name: Sign + package via canonical Grafana action
+        id: package
+        uses: grafana/plugin-actions/package-plugin@main
+        with:
+          policy_token: ${{ secrets.GRAFANA_ACCESS_POLICY_TOKEN }}
+          node-version: "24"
+
+      - name: Add -echarts${{ matrix.echarts }} suffix to artifacts
+        id: rename
+        run: |
+          ORIG_ZIP="${{ steps.package.outputs.archive }}"
+          ORIG_SHA="${{ steps.package.outputs.archive-sha1sum }}"
+          PLUGIN_ID="${{ steps.package.outputs.plugin-id }}"
+          VERSION="${{ steps.package.outputs.plugin-version }}"
+          NEW_ZIP="${PLUGIN_ID}-${VERSION}-echarts${{ matrix.echarts }}.zip"
+          NEW_SHA="${NEW_ZIP}.sha1"
+          mv "$ORIG_ZIP" "$NEW_ZIP"
+          mv "$ORIG_SHA" "$NEW_SHA"
+          echo "archive=$NEW_ZIP"         >> "$GITHUB_OUTPUT"
+          echo "archive-sha1sum=$NEW_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Validate plugin (@grafana/plugin-validator)
-        run: scripts/validate.sh "community-echarts-panel-$(node -p "require('./dist/plugin.json').info.version")-echarts${{ matrix.echarts }}.zip"
+        run: scripts/validate.sh "${{ steps.rename.outputs.archive }}"
 
-      - name: Sign and re-package
-        run: |
-          # @grafana/sign-plugin signs dist/ in place; re-package after
-          # so the variant zip contains the signed MANIFEST.txt.
-          if [ -n "$GRAFANA_ACCESS_POLICY_TOKEN" ]; then
-            npx --yes @grafana/sign-plugin@latest
-          else
-            echo "GRAFANA_ACCESS_POLICY_TOKEN not set; publishing unsigned variant zip."
-          fi
-          PLUGIN_ID=$(node -p "require('./dist/plugin.json').id")
-          VERSION=$(node -p "require('./dist/plugin.json').info.version")
-          ARTIFACT="${PLUGIN_ID}-${VERSION}-echarts${{ matrix.echarts }}.zip"
-          rm -f "$ARTIFACT" "$ARTIFACT.sha256"
-          rm -rf _pkg
-          mkdir -p _pkg
-          cp -r dist "_pkg/${PLUGIN_ID}"
-          (cd _pkg && zip -qr "../${ARTIFACT}" "${PLUGIN_ID}")
-          rm -rf _pkg
-          sha256sum "$ARTIFACT" > "${ARTIFACT}.sha256"
-        env:
-          GRAFANA_ACCESS_POLICY_TOKEN: ${{ secrets.GRAFANA_ACCESS_POLICY_TOKEN }}
+      - name: Generate Sigstore attestation
+        if: ${{ secrets.GRAFANA_ACCESS_POLICY_TOKEN != '' }}
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: ${{ steps.rename.outputs.archive }}
 
       - uses: actions/upload-artifact@v4
         with:
           name: zip-echarts${{ matrix.echarts }}
           path: |
-            community-echarts-panel-*-echarts${{ matrix.echarts }}.zip
-            community-echarts-panel-*-echarts${{ matrix.echarts }}.zip.sha256
+            ${{ steps.rename.outputs.archive }}
+            ${{ steps.rename.outputs.archive-sha1sum }}
           retention-days: 7
 
   release:
-    name: Publish GitHub Release
-    if: |
-      startsWith(github.ref, 'refs/tags/v') ||
-      github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'chore(release):'))
+    name: Publish draft release
     needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Compute release tag from package.json
-        id: tag
+      - id: tag
         run: |
-          # On a tag push, github.ref_name is already the tag.
-          # Otherwise read the version from package.json.
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             TAG="${GITHUB_REF_NAME}"
           else
-            VERSION=$(node -p "require('./package.json').version")
-            TAG="v${VERSION}"
+            TAG="v$(node -p "require('./package.json').version")"
           fi
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "Will publish release tag: ${TAG}"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: true
 
-      - name: Publish release
-        uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
           name: ${{ steps.tag.outputs.tag }}
+          draft: true
+          generate_release_notes: true
           files: artifacts/*
           fail_on_unmatched_files: true
-          generate_release_notes: true
+          body: |
+            **Draft release for catalog submission.**
+
+            Two ECharts variants attached:
+
+            | Variant | Asset | Best for |
+            |---|---|---|
+            | ECharts 4.9 | `community-echarts-panel-${{ steps.tag.outputs.version }}-echarts4.zip` | Direct upgrade from upstream `bilibala-echarts-panel`; existing v8.5.x dashboards |
+            | ECharts 5.6 | `community-echarts-panel-${{ steps.tag.outputs.version }}-echarts5.zip` | New panels, modern ECharts API |
+
+            Each comes with a `.sha1` sidecar suitable for the Grafana plugin catalog submission form. Sigstore build provenance attestations are generated when `GRAFANA_ACCESS_POLICY_TOKEN` is configured.
+
+            ### To submit to the Grafana catalog
+
+            1. Edit this draft release and click **Publish Release**.
+            2. https://grafana.com/auth/sign-in → My Plugins → Submit New Plugin.
+            3. Plugin URL: `https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/community-echarts-panel-${{ steps.tag.outputs.version }}-echarts5.zip`
+            4. Source code URL: `https://github.com/${{ github.repository }}`
+            5. SHA1: paste the contents of the `community-echarts-panel-${{ steps.tag.outputs.version }}-echarts5.zip.sha1` sidecar.
+            6. Testing guidance: see the README's *Install* section.

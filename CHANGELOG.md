@@ -43,6 +43,45 @@ Grafana's catalog submission flow runs.
    the README's Migration section.
 4. Restart Grafana.
 
+### Release pipeline rework
+
+- **`.github/workflows/release.yml` adopts the canonical Grafana
+  publishing flow.** The matrix build now uses
+  `grafana/plugin-actions/package-plugin@main` for sign + zip (the
+  same action Grafana's docs recommend). The dev-branch trigger
+  workaround is gone — the workflow only fires on `vX.Y.Z` tag pushes
+  (and `workflow_dispatch` for manual recovery), per "always release
+  from master".
+- **Each release is a draft.** The release job uses
+  `softprops/action-gh-release@v2 with draft: true`. The maintainer
+  reviews the assets, edits release notes if needed, then clicks
+  Publish. The draft body includes a copy-pasteable catalog
+  submission walk-through (URL, source URL, SHA1) populated from the
+  workflow's outputs.
+- **Sigstore build provenance attestations** are generated when
+  `GRAFANA_ACCESS_POLICY_TOKEN` is set, via
+  `actions/attest-build-provenance@v3`, providing cryptographic proof
+  that each variant zip came from this repo's CI.
+- **Two new scripts:**
+  - `scripts/prep-variant.sh <4|5>` mutates `package.json` +
+    regenerates `package-lock.json` for the chosen variant. Required
+    because the canonical action runs `npm install` against whatever
+    lockfile it finds; we need the lockfile pinned to the variant's
+    deps before the action starts.
+  - `scripts/build-variant.sh <4|5>` is now a thin wrapper around
+    `prep-variant.sh + npm ci + npm run build + zip` for local-only
+    builds (CI uses the canonical action).
+- **Cutting a release** is now the standard semver-bump + tag flow:
+  ```
+  git checkout master && git pull
+  npm version 2.6.0 --no-git-tag-version
+  git commit -am "chore(release): v2.6.0"
+  git tag -a v2.6.0 -m "v2.6.0"
+  git push origin master --follow-tags
+  ```
+  The workflow builds, signs, validates, and attests both ECharts
+  variants, then attaches them all to a draft v2.6.0 GitHub Release.
+
 ## v2.5.0
 
 This is the first published release of the Grafana 10–13 fork.
