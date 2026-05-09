@@ -1,27 +1,33 @@
 name: Release
 
-# Canonical Grafana publishing flow. Fires only on a `vX.Y.Z` tag push
-# from master (per "always release from master"). Cuts a new release:
+# Auto-release on every merge to master once Smoke is green and the
+# version in package.json hasn't been released yet.
 #
-#   git checkout master
-#   git pull origin master
-#   npm version 2.6.0 --no-git-tag-version
-#   git commit -am "chore(release): v2.6.0"
-#   git tag -a v2.6.0 -m "v2.6.0"
-#   git push origin master --follow-tags
+# Two trigger paths:
+#   1. Smoke workflow completes successfully on master/main → this
+#      workflow auto-fires. The `gate` job below checks whether the
+#      package.json version matches an already-published tag; if not,
+#      the build matrix runs and a draft release is published.
+#   2. Manual `vX.Y.Z` tag push (or workflow_dispatch) → release runs
+#      unconditionally. Used for emergency cuts or re-runs.
 #
-# The workflow runs the canonical grafana/plugin-actions/package-plugin
-# action twice in a build matrix (one per ECharts variant), renames the
-# canonical zip to add the `-echarts<major>` suffix, validates each
-# variant against @grafana/plugin-validator, attests the build via
-# Sigstore, and uploads everything to one draft GitHub Release. The
-# draft is what the maintainer points the Grafana plugin catalog
-# submission form at.
+# Cutting a release becomes a normal PR flow:
+#   1. Open a PR that bumps `package.json#version` (and updates
+#      CHANGELOG).
+#   2. Merge the PR to master.
+#   3. Smoke runs on master, finishes green.
+#   4. This workflow fires, sees the new version, builds + signs both
+#      ECharts variants, and creates a draft GitHub Release.
+#   5. The maintainer reviews the draft and clicks Publish.
 
 on:
   push:
     tags:
       - 'v*'
+  workflow_run:
+    workflows: ['Smoke']
+    types: [completed]
+    branches: [master, main]
   workflow_dispatch:
 
 env:
@@ -31,10 +37,84 @@ permissions:
   contents: write
   id-token: write
   attestations: write
+  actions: read
 
 jobs:
+  gate:
+    # Decide whether this run should publish a release. Publishes when:
+    #   - the trigger is a tag push (refs/tags/v*), or
+    #   - the trigger is workflow_dispatch, or
+    #   - the trigger is workflow_run with conclusion=success AND the
+    #     package.json version doesn't already have a matching tag.
+    name: Decide whether to release
+    runs-on: ubuntu-latest
+    outputs:
+      should-release: ${{ steps.gate.outputs.should-release }}
+      tag: ${{ steps.gate.outputs.tag }}
+      sha: ${{ steps.gate.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # On workflow_run, GITHUB_SHA points at the workflow_run's
+          # head, not master's HEAD. Check out that exact commit so
+          # package.json reflects what Smoke just validated.
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - id: gate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
+          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
+
+          # Tag push: always release. Tag is github.ref_name.
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "Trigger: tag push (${GITHUB_REF_NAME})"
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+            echo "should-release=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # workflow_dispatch: always release. Tag from package.json.
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION=$(node -p "require('./package.json').version")
+            echo "Trigger: workflow_dispatch (v${VERSION})"
+            echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "should-release=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # workflow_run: only release if Smoke succeeded AND the
+          # package.json version is new.
+          CONCLUSION="${{ github.event.workflow_run.conclusion }}"
+          if [[ "$CONCLUSION" != "success" ]]; then
+            echo "Trigger: workflow_run (Smoke conclusion=${CONCLUSION}) — skipping"
+            echo "should-release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v${VERSION}"
+          echo "Trigger: workflow_run (Smoke succeeded on ${SHA}). Checking if ${TAG} is already released..."
+
+          STATUS=$(curl -sS -o /dev/null -w "%{http_code}" \
+            -H "Authorization: token ${GH_TOKEN}" \
+            "https://api.github.com/repos/${REPO}/git/ref/tags/${TAG}")
+          if [[ "$STATUS" == "200" ]]; then
+            echo "Tag ${TAG} already exists — nothing to release."
+            echo "should-release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Tag ${TAG} missing — will release."
+            echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+            echo "should-release=true" >> "$GITHUB_OUTPUT"
+          fi
+
   build:
     name: Build echarts${{ matrix.echarts }}
+    needs: gate
+    if: needs.gate.outputs.should-release == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -42,6 +122,8 @@ jobs:
         echarts: ["4", "5"]
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
 
       - name: Pin ECharts ${{ matrix.echarts }} variant
         run: scripts/prep-variant.sh ${{ matrix.echarts }}
@@ -86,20 +168,19 @@ jobs:
 
   release:
     name: Publish draft release
-    needs: build
+    needs: [gate, build]
+    if: needs.gate.outputs.should-release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
 
       - id: tag
         run: |
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            TAG="${GITHUB_REF_NAME}"
-          else
-            TAG="v$(node -p "require('./package.json').version")"
-          fi
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          TAG="${{ needs.gate.outputs.tag }}"
+          echo "tag=${TAG}"           >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}"     >> "$GITHUB_OUTPUT"
 
       - uses: actions/download-artifact@v4
         with:
@@ -109,6 +190,7 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
+          target_commitish: ${{ needs.gate.outputs.sha }}
           name: ${{ steps.tag.outputs.tag }}
           draft: true
           generate_release_notes: true
