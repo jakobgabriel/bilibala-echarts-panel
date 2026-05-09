@@ -1,0 +1,61 @@
+name: Smoke
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - 'claude/**'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: npm
+
+      - run: npm ci
+      - run: npx eslint src
+      - run: npm run typecheck
+      - run: npm run test:ci
+      - run: npm run build
+
+      - name: Upload built plugin
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist
+          retention-days: 1
+
+  smoke:
+    name: Grafana ${{ matrix.grafana }}
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        grafana:
+          - "8.5.27"
+          - "9.5.21"
+          - "10.4.19"
+          - "11.6.14"
+          - "12.4.3"
+          - "13.0.1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download built plugin
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Run smoke test against grafana/grafana:${{ matrix.grafana }}
+        run: scripts/smoke.sh "${{ matrix.grafana }}"
