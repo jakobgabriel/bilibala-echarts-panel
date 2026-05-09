@@ -1,6 +1,6 @@
 apiVersion: 1
 providers:
-  - name: 'g-echarts-screenshots'
+  - name: 'community-echarts-panel-screenshots'
     orgId: 1
     folder: ''
     type: file

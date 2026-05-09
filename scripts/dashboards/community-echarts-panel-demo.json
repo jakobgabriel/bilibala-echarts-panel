@@ -32,7 +32,7 @@
         }
       ],
       "title": "Default G-ECharts chart",
-      "type": "g-echarts"
+      "type": "community-echarts-panel"
     },
     {
       "datasource": {"type": "grafana-testdata-datasource", "uid": "testdata"},
@@ -60,7 +60,7 @@
         }
       ],
       "title": "Bar chart",
-      "type": "g-echarts"
+      "type": "community-echarts-panel"
     },
     {
       "datasource": {"type": "grafana-testdata-datasource", "uid": "testdata"},
@@ -109,19 +109,19 @@
         }
       ],
       "title": "Pie chart",
-      "type": "g-echarts"
+      "type": "community-echarts-panel"
     }
   ],
   "preload": false,
   "refresh": "",
   "schemaVersion": 39,
-  "tags": ["g-echarts", "demo"],
+  "tags": ["community-echarts-panel", "demo"],
   "templating": {"list": []},
   "time": {"from": "now-6h", "to": "now"},
   "timepicker": {},
   "timezone": "browser",
   "title": "G-ECharts demo",
-  "uid": "g-echarts-demo",
+  "uid": "community-echarts-panel-demo",
   "version": 1,
   "weekStart": ""
 }

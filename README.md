@@ -1,17 +1,17 @@
-# G-ECharts — an Apache ECharts™ panel for Grafana
+# Community ECharts — an Apache ECharts™ panel for Grafana
 
 > **A maintained fork of [bilibala-echarts-panel](https://github.com/Billiballa/bilibala-echarts-panel) by [@Billiballa](https://github.com/Billiballa).**
 > All credit for the original plugin design, panel UX, and the
 > `(data, theme, echartsInstance, echarts)` function-body API goes to
 > Billiballa. This fork modernizes the build for Grafana 11–13 while
 > preserving Billiballa's user-facing contract verbatim, so existing
-> dashboards keep rendering without edits.
+> chart code keeps working.
 
 ![release](https://img.shields.io/github/v/release/jakobgabriel/bilibala-echarts-panel)
 ![issues](https://img.shields.io/github/issues-closed/jakobgabriel/bilibala-echarts-panel)
 ![stars](https://img.shields.io/github/stars/jakobgabriel/bilibala-echarts-panel?style=social)
 
-![hero](src/img/screenshot.png)
+![hero](https://raw.githubusercontent.com/jakobgabriel/bilibala-echarts-panel/master/src/img/screenshot.png)
 
 ## Origin & credits
 
@@ -22,23 +22,23 @@ This fork's contribution is limited to:
 - modernizing the build (drop `@grafana/toolkit`, move to `@grafana/create-plugin`, Webpack 5, SWC, Jest 29, React 18, Node 24);
 - making the user-facing API survive the modernization via a transparent compatibility shim (`src/compat.ts`) so `theme.type` and `field.values.buffer` keep working;
 - making charts inherit Grafana's full theme palette via a derived ECharts theme (`src/grafanaTheme.ts`);
-- declaring `aliasIDs: ["bilibala-echarts-panel"]` in `plugin.json` so existing dashboards resolve transparently to this plugin.
+- shipping two ECharts variants (4.9 and 5.6) per release so users can pick the API their chart code targets.
 
 ## Compatibility
 
-The CI gate runs `@grafana/plugin-validator`, type-check, unit tests, and a smoke load against Grafana **11.6.14**, **12.4.3**, and **13.0.1**. Each panel-edit screenshot below is captured live from a fresh Grafana container of that version against the dashboard at `scripts/dashboards/g-echarts-demo.json` and the same `dist/` artifact that's published in the GitHub Release.
+The CI gate runs `@grafana/plugin-validator`, type-check, unit tests, and a smoke load against Grafana **11.6.14**, **12.4.3**, and **13.0.1**. Each panel-edit screenshot below is captured live from a fresh Grafana container of that version against the dashboard at `scripts/dashboards/community-echarts-panel-demo.json` and the same `dist/` artifact that's published in the GitHub Release.
 
 ### Grafana 11.6.14
 
-![G-ECharts panel-edit view on Grafana 11.6.14](src/img/usage-edit-grafana-11.png)
+![Community ECharts panel-edit view on Grafana 11.6.14](https://raw.githubusercontent.com/jakobgabriel/bilibala-echarts-panel/master/src/img/usage-edit-grafana-11.png)
 
 ### Grafana 12.4.3
 
-![G-ECharts panel-edit view on Grafana 12.4.3](src/img/usage-edit-grafana-12.png)
+![Community ECharts panel-edit view on Grafana 12.4.3](https://raw.githubusercontent.com/jakobgabriel/bilibala-echarts-panel/master/src/img/usage-edit-grafana-12.png)
 
 ### Grafana 13.0.1
 
-![G-ECharts panel-edit view on Grafana 13.0.1](src/img/usage-edit-grafana-13.png)
+![Community ECharts panel-edit view on Grafana 13.0.1](https://raw.githubusercontent.com/jakobgabriel/bilibala-echarts-panel/master/src/img/usage-edit-grafana-13.png)
 
 To reproduce the captures locally:
 
@@ -50,78 +50,97 @@ PLAYWRIGHT_BROWSERS_PATH=$HOME/.cache/ms-playwright \
 
 ## Install
 
-The Grafana plugin id is `g-echarts`. The plugin is **not** in the official Grafana catalog (the `grafana-` prefix is reserved by Grafana Labs for first-party plugins, so even a fork named `grafana-echarts` would be rejected; this fork picked the short brandable id `g-echarts` and distributes via GitHub Releases).
-
-**Requires Grafana >= 11.** (Grafana 10 is EOL and rejects the `aliasIDs` field that powers transparent dashboard migration; users on 10.x can stay on the upstream `bilibala-echarts-panel` until they upgrade.)
+The Grafana plugin id is `community-echarts-panel`. Distribution is via GitHub Releases. **Requires Grafana >= 11.**
 
 ### Pick an ECharts variant
 
-Each tagged release ships **two signed zips** corresponding to the bundled ECharts major. Both share the same plugin id, the same `plugin.json` schema, and the same `aliasIDs`, so dashboards are interchangeable across variants — but **user-authored `getOption` code can break** at the v4 → v5 boundary (e.g. `series[].lineStyle.normal` was removed in v5). Pick the variant that matches your existing chart code; switching later is a re-install.
+Each tagged release ships **two zips** corresponding to the bundled ECharts major. Both share the same plugin id, the same `plugin.json` schema, and the same panel-options surface, so dashboards are interchangeable across variants — but **user-authored `getOption` code can break** at the v4 → v5 boundary (e.g. `series[].lineStyle.normal` was removed in v5). Pick the variant that matches your existing chart code; switching later is a re-install.
 
 | Bundled ECharts | Asset | Best for |
 |---|---|---|
-| 4.9 (default) | `g-echarts-2.4.0-echarts4.zip` | Direct upgrade from upstream `bilibala-echarts-panel`; existing v8.5.x dashboards |
-| 5.x           | `g-echarts-2.4.0-echarts5.zip` | New panels, modern ECharts API |
+| 4.9 (default) | `community-echarts-panel-2.6.0-echarts4.zip` | Direct upgrade from upstream `bilibala-echarts-panel`; existing v8.5.x dashboards |
+| 5.x           | `community-echarts-panel-2.6.0-echarts5.zip` | New panels, modern ECharts API |
 
 ECharts 6 is intentionally not bundled — at the time of release the add-on ecosystem (`echarts-gl`, `echarts-liquidfill`, `echarts-wordcloud`) had not yet shipped v6-compatible majors.
 
 ### Required Grafana setting
 
-The plugin is community-tier signed (not catalog-signed); allow it explicitly:
+The plugin is community-tier signed (or unsigned, depending on the release). Allow it explicitly:
 
 ```ini
 # grafana.ini
 [plugins]
-allow_loading_unsigned_plugins = g-echarts
+allow_loading_unsigned_plugins = community-echarts-panel
 ```
 
-### Path A — `grafana-cli` (simplest)
+### Quick install (one-liner)
 
 ```sh
-grafana-cli --pluginUrl https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.4.0/g-echarts-2.4.0-echarts4.zip plugins install g-echarts
+wget -qO /tmp/p.zip https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.6.0/community-echarts-panel-2.6.0-echarts5.zip \
+  && sudo unzip -q /tmp/p.zip -d /var/lib/grafana/plugins \
+  && rm /tmp/p.zip \
+  && sudo systemctl restart grafana-server
+```
+
+Swap `-echarts5` → `-echarts4` for the v4 variant.
+
+### Path A — `grafana-cli` (with SHA verification)
+
+```sh
+grafana-cli --pluginUrl https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.6.0/community-echarts-panel-2.6.0-echarts4.zip plugins install community-echarts-panel
 sudo systemctl restart grafana-server
 ```
 
-Verify the SHA256 first (each release also publishes `<asset>.sha256`):
+Verify the integrity sidecar first (each release publishes `.sha1` / `.md5` next to the zip):
 
 ```sh
-curl -sLO https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.4.0/g-echarts-2.4.0-echarts4.zip
-curl -sLO https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.4.0/g-echarts-2.4.0-echarts4.zip.sha256
-sha256sum -c g-echarts-2.4.0-echarts4.zip.sha256
+curl -sLO https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.6.0/community-echarts-panel-2.6.0-echarts4.zip
+curl -sL https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.6.0/community-echarts-panel-2.6.0-echarts4.zip.sha1
+sha1sum community-echarts-panel-2.6.0-echarts4.zip   # compare to the .sha1 contents
 ```
 
-### Path B — manual unzip (no tooling)
-
-```sh
-curl -sLO https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.4.0/g-echarts-2.4.0-echarts4.zip
-sudo unzip -o g-echarts-2.4.0-echarts4.zip -d /var/lib/grafana/plugins/
-sudo systemctl restart grafana-server
-```
-
-The zip extracts as `g-echarts/` so the final plugin path is `/var/lib/grafana/plugins/g-echarts/`.
-
-### Path C — Docker bind mount (dev / CI)
+### Path B — Docker bind mount (dev / CI)
 
 ```sh
 docker run -d -p 3000:3000 \
-  -v /path/to/g-echarts:/var/lib/grafana/plugins/g-echarts:ro \
-  -e GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=g-echarts \
+  -v /path/to/community-echarts-panel:/var/lib/grafana/plugins/community-echarts-panel:ro \
+  -e GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=community-echarts-panel \
   grafana/grafana:13.0.1
 ```
 
 This is the path `scripts/capture-screenshots.py` uses; the plugin is loaded from the host filesystem, so iteration is `npm run build` (or `scripts/build-variant.sh 5`) → restart container.
 
-## Migrating from `bilibala-echarts-panel`
+## Migrating from `bilibala-echarts-panel`, `grafana-echarts`, or `g-echarts`
 
-If you have dashboards from a Grafana 8.5.x instance that used Billiballa's original `bilibala-echarts-panel`, **no manual edit is needed on Grafana 11+**. This plugin declares `aliasIDs: ["bilibala-echarts-panel", "grafana-echarts"]` in its `plugin.json`, so Grafana transparently resolves panels with the legacy `"type": "bilibala-echarts-panel"` to `g-echarts`. The stored panel options (`followTheme`, `getOption`, …) deserialize cleanly into the modern `SimpleOptions` shape (asserted by `src/migration.test.ts`).
+The plugin id changed from earlier identifiers (`bilibala-echarts-panel` upstream, briefly `grafana-echarts` and `g-echarts` during this fork's evolution) to `community-echarts-panel`. The new id is required by the Grafana plugin-validator (3 hyphen-separated parts ending in `-panel`); the older ids do not pass.
 
-The variant zip you pick at install time decides which ECharts major your charts run against. The default `g-echarts-*-echarts4.zip` ships ECharts 4.9 — the same major upstream `bilibala-echarts-panel` shipped — so any `getOption` code from a Grafana 8.5.x dashboard runs unchanged. If you switch to the `-echarts5.zip` variant and your chart used the legacy `series[].lineStyle.normal` / `series[].itemStyle.normal` syntax (deprecated in ECharts 4, removed in 5), flatten it: `series[].lineStyle` / `series[].itemStyle`.
+If you have dashboards that reference any earlier id, edit each dashboard's JSON (Settings → JSON Model → Save) and replace every panel's `type` field:
+
+| Old `type` value           | New `type` value           |
+| -------------------------- | -------------------------- |
+| `bilibala-echarts-panel`   | `community-echarts-panel`  |
+| `grafana-echarts`          | `community-echarts-panel`  |
+| `g-echarts`                | `community-echarts-panel`  |
+
+For bulk migration of provisioned dashboard JSON files:
+
+```sh
+find /etc/grafana/provisioning/dashboards -name '*.json' -exec sed -i \
+  -e 's/"type": *"bilibala-echarts-panel"/"type": "community-echarts-panel"/g' \
+  -e 's/"type": *"grafana-echarts"/"type": "community-echarts-panel"/g' \
+  -e 's/"type": *"g-echarts"/"type": "community-echarts-panel"/g' \
+  {} \;
+```
+
+The stored panel options (`followTheme`, `getOption`, `tickContent`, …) deserialize cleanly into the modern `SimpleOptions` shape regardless of which legacy id the dashboard originated from (`src/migration.test.ts` asserts this).
+
+The variant zip you pick at install time decides which ECharts major your charts run against. The default `community-echarts-panel-*-echarts4.zip` ships ECharts 4.9 — the same major upstream `bilibala-echarts-panel` shipped — so any `getOption` code from a Grafana 8.5.x dashboard runs unchanged. If you switch to the `-echarts5.zip` variant and your chart uses the legacy `series[].lineStyle.normal` / `series[].itemStyle.normal` syntax (deprecated in ECharts 4, removed in 5), flatten it: `series[].lineStyle` / `series[].itemStyle`.
 
 ## Usage
 
 ### 1. Add the panel to a dashboard
 
-Open a dashboard → **Add panel** → search for **G-ECharts**. The default chart (Billiballa's original area-line example) renders immediately from any time-series query, with no edits required.
+Open a dashboard → **Add panel** → search for **Community ECharts**. The default chart (Billiballa's original area-line example) renders immediately from any time-series query, with no edits required.
 
 ### 2. Edit the chart options
 
