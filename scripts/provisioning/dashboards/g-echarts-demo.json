@@ -1,0 +1,127 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {"type": "grafana-testdata-datasource", "uid": "testdata"},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 0},
+      "id": 1,
+      "options": {
+        "followTheme": true,
+        "tickContent": "",
+        "themeName": "default",
+        "baidumapKey": "",
+        "baidumapToken": "",
+        "googlemapKey": "",
+        "googlemapToken": "",
+        "getOption": "// G-ECharts default chart\nlet xAxisData = [];\nlet seriesData = [];\nfor (const f of data.series[0].fields) {\n  if (f.type === 'time') {\n    xAxisData = f.values.map((t) => new Date(t).toLocaleTimeString());\n  } else if (f.type === 'number') {\n    seriesData = f.values;\n  }\n}\nreturn {\n  title: { text: 'Default chart (Billiballa\\'s area-line example)', left: 'center' },\n  tooltip: { trigger: 'axis' },\n  xAxis: { type: 'category', data: xAxisData, boundaryGap: false },\n  yAxis: { type: 'value' },\n  series: [{\n    type: 'line',\n    data: seriesData,\n    smooth: true,\n    areaStyle: { opacity: 0.3 },\n    lineStyle: { width: 2 },\n  }],\n};"
+      },
+      "pluginVersion": "2.4.0",
+      "targets": [
+        {
+          "datasource": {"type": "grafana-testdata-datasource", "uid": "testdata"},
+          "refId": "A",
+          "scenarioId": "random_walk",
+          "seriesCount": 1,
+          "alias": "Series A"
+        }
+      ],
+      "title": "Default G-ECharts chart",
+      "type": "g-echarts"
+    },
+    {
+      "datasource": {"type": "grafana-testdata-datasource", "uid": "testdata"},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 10, "w": 12, "x": 0, "y": 10},
+      "id": 2,
+      "options": {
+        "followTheme": true,
+        "tickContent": "",
+        "themeName": "default",
+        "baidumapKey": "",
+        "baidumapToken": "",
+        "googlemapKey": "",
+        "googlemapToken": "",
+        "getOption": "// Bar chart from time-series\nconst valueField = data.series[0].fields.find((f) => f.type === 'number');\nconst timeField = data.series[0].fields.find((f) => f.type === 'time');\nreturn {\n  title: { text: 'Bar chart example', left: 'center' },\n  tooltip: { trigger: 'axis' },\n  grid: { left: 50, right: 20, top: 50, bottom: 30 },\n  xAxis: {\n    type: 'category',\n    data: timeField.values.slice(-12).map((t) => new Date(t).toLocaleTimeString()),\n  },\n  yAxis: { type: 'value' },\n  series: [{ type: 'bar', data: valueField.values.slice(-12) }],\n};"
+      },
+      "pluginVersion": "2.4.0",
+      "targets": [
+        {
+          "datasource": {"type": "grafana-testdata-datasource", "uid": "testdata"},
+          "refId": "A",
+          "scenarioId": "random_walk",
+          "seriesCount": 1,
+          "alias": "Bars"
+        }
+      ],
+      "title": "Bar chart",
+      "type": "g-echarts"
+    },
+    {
+      "datasource": {"type": "grafana-testdata-datasource", "uid": "testdata"},
+      "fieldConfig": {"defaults": {}, "overrides": []},
+      "gridPos": {"h": 10, "w": 12, "x": 12, "y": 10},
+      "id": 3,
+      "options": {
+        "followTheme": true,
+        "tickContent": "",
+        "themeName": "default",
+        "baidumapKey": "",
+        "baidumapToken": "",
+        "googlemapKey": "",
+        "googlemapToken": "",
+        "getOption": "// Pie chart aggregated across series\nconst slices = data.series.map((s, i) => ({\n  name: s.name || `Series ${i + 1}`,\n  value: Math.abs(\n    s.fields\n      .find((f) => f.type === 'number')\n      .values.reduce((a, b) => a + b, 0)\n  ),\n}));\nreturn {\n  title: { text: 'Pie chart example', left: 'center' },\n  tooltip: { trigger: 'item' },\n  legend: { bottom: 0 },\n  series: [{\n    type: 'pie',\n    radius: ['40%', '65%'],\n    center: ['50%', '50%'],\n    data: slices,\n    label: { show: true, formatter: '{b}: {d}%' },\n  }],\n};"
+      },
+      "pluginVersion": "2.4.0",
+      "targets": [
+        {
+          "datasource": {"type": "grafana-testdata-datasource", "uid": "testdata"},
+          "refId": "A",
+          "scenarioId": "random_walk",
+          "seriesCount": 1,
+          "alias": "Alpha"
+        },
+        {
+          "datasource": {"type": "grafana-testdata-datasource", "uid": "testdata"},
+          "refId": "B",
+          "scenarioId": "random_walk",
+          "seriesCount": 1,
+          "alias": "Beta"
+        },
+        {
+          "datasource": {"type": "grafana-testdata-datasource", "uid": "testdata"},
+          "refId": "C",
+          "scenarioId": "random_walk",
+          "seriesCount": 1,
+          "alias": "Gamma"
+        },
+        {
+          "datasource": {"type": "grafana-testdata-datasource", "uid": "testdata"},
+          "refId": "D",
+          "scenarioId": "random_walk",
+          "seriesCount": 1,
+          "alias": "Delta"
+        }
+      ],
+      "title": "Pie chart",
+      "type": "g-echarts"
+    }
+  ],
+  "preload": false,
+  "refresh": "",
+  "schemaVersion": 39,
+  "tags": ["g-echarts", "demo"],
+  "templating": {"list": []},
+  "time": {"from": "now-6h", "to": "now"},
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "G-ECharts demo",
+  "uid": "g-echarts-demo",
+  "version": 1,
+  "weekStart": ""
+}

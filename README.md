@@ -52,14 +52,14 @@ The bundled ECharts version was bumped from 4.x to 6.x. Most user-authored `getO
 
 ### 1. Add the panel to a dashboard
 
-<!-- TODO screenshot: src/img/usage-add-panel.png — the panel picker showing G-ECharts -->
+![Add panel picker showing G-ECharts](src/img/usage-add-panel.png)
 
 - Open a dashboard → **Add panel** → search for **G-ECharts**.
 - The default chart (Billiballa's original area-line example) renders immediately from any time-series query, with no edits required.
 
 ### 2. Edit the chart options
 
-<!-- TODO screenshot: src/img/usage-options-editor.png — the "Echarts options" code editor pane -->
+![Echarts options code editor](src/img/usage-options-editor.png)
 
 - The **Echarts options** editor in the panel options pane is the function body of `(data, theme, echartsInstance, echarts) => { ... }`.
 - The function must `return` an [ECharts option object](https://echarts.apache.org/option.html).
@@ -69,7 +69,7 @@ The bundled ECharts version was bumped from 4.x to 6.x. Most user-authored `getO
 
 #### Bar chart from a single time-series query
 
-<!-- TODO screenshot: src/img/usage-bar-chart.png -->
+![Bar chart example](src/img/usage-bar-chart.png)
 
 ```js
 const valueField = data.series[0].fields.find((f) => f.type === 'number');
@@ -86,7 +86,7 @@ return {
 
 #### Pie chart aggregated across series
 
-<!-- TODO screenshot: src/img/usage-pie-chart.png -->
+![Pie chart example](src/img/usage-pie-chart.png)
 
 ```js
 return {
@@ -125,8 +125,9 @@ return {
 
 ### 4. Follow Grafana theme
 
-<!-- TODO screenshot: src/img/usage-theme-dark.png — chart in Grafana's dark theme -->
-<!-- TODO screenshot: src/img/usage-theme-light.png — same chart in light theme -->
+| Dark theme | Light theme |
+| --- | --- |
+| ![Dark theme](src/img/usage-theme-dark.png) | ![Light theme](src/img/usage-theme-light.png) |
 
 - Toggle **Follow Grafana Theme** in the panel options.
 - The chart inherits Grafana's full theme palette: series colors come from `theme.visualization.palette`; text, tooltip, axis, and grid-line colors come from `theme.colors.*`. Custom themes shipped in newer Grafana versions (e.g. high-contrast) are picked up automatically.
