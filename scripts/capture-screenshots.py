@@ -2,7 +2,7 @@
 
 For each Grafana major, the script:
   1. Boots `grafana/grafana:<patch>` with the local dist mounted as the
-     g-echarts plugin and the demo dashboard provisioned.
+     community-echarts-panel plugin and the demo dashboard provisioned.
   2. Creates the TestData datasource (uid=`testdata`) via Grafana's HTTP API.
   3. Opens the panel-edit view of the bar-chart panel (panel id 2).
   4. Screenshots the full 1600×1000 viewport — chart on the left,
@@ -33,7 +33,7 @@ from playwright.sync_api import sync_playwright
 
 REPO = Path(__file__).resolve().parent.parent
 GRAFANA = os.environ.get("GRAFANA_URL", "http://localhost:3000")
-DASH_UID = "g-echarts-demo"
+DASH_UID = "community-echarts-panel-demo"
 OUT = Path(os.environ.get("OUT", REPO / "src" / "img"))
 
 VERSIONS = [
@@ -97,7 +97,7 @@ def wait_for_dashboard(timeout_s=20):
     while time.time() < deadline:
         try:
             status, body = http_get(
-                f"{GRAFANA}/api/search?query=g-echarts", timeout=2
+                f"{GRAFANA}/api/search?query=community-echarts-panel", timeout=2
             )
             if status == 200 and DASH_UID.encode() in body:
                 return
@@ -117,10 +117,10 @@ def boot_grafana(version_tag, container_name):
         "run", "-d",
         "--name", container_name,
         "-p", "3000:3000",
-        "-v", f"{REPO}/dist:/var/lib/grafana/plugins/g-echarts:ro",
+        "-v", f"{REPO}/dist:/var/lib/grafana/plugins/community-echarts-panel:ro",
         "-v", f"{REPO}/scripts/provisioning:/etc/grafana/provisioning:ro",
         "-v", f"{REPO}/scripts/dashboards:/var/lib/grafana/dashboards:ro",
-        "-e", "GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=g-echarts",
+        "-e", "GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=community-echarts-panel",
         "-e", "GF_AUTH_ANONYMOUS_ENABLED=true",
         "-e", "GF_AUTH_ANONYMOUS_ORG_ROLE=Admin",
         "-e", "GF_LOG_LEVEL=warn",
@@ -138,7 +138,7 @@ def stop_grafana(container_name):
 def capture_edit_view(page, out_path):
     page.set_viewport_size({"width": 1600, "height": 1000})
     page.goto(
-        f"{GRAFANA}/d/{DASH_UID}/g-echarts-demo?orgId=1&editPanel=2&theme=dark",
+        f"{GRAFANA}/d/{DASH_UID}/community-echarts-panel-demo?orgId=1&editPanel=2&theme=dark",
         wait_until="networkidle",
         timeout=45000,
     )
@@ -164,7 +164,7 @@ def main():
         ctx = browser.new_context(viewport={"width": 1600, "height": 1000})
         page = ctx.new_page()
         for major, tag in VERSIONS:
-            container = f"g-echarts-shots-{major}"
+            container = f"community-echarts-panel-shots-{major}"
             print(f"• Grafana {tag}")
             boot_grafana(tag, container)
             try:

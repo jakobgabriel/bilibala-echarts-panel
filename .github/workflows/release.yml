@@ -45,7 +45,7 @@ jobs:
       - run: scripts/build-variant.sh ${{ matrix.echarts }}
 
       - name: Validate plugin (@grafana/plugin-validator)
-        run: scripts/validate.sh "g-echarts-$(node -p "require('./dist/plugin.json').info.version")-echarts${{ matrix.echarts }}.zip"
+        run: scripts/validate.sh "community-echarts-panel-$(node -p "require('./dist/plugin.json').info.version")-echarts${{ matrix.echarts }}.zip"
 
       - name: Sign and re-package
         run: |
@@ -73,8 +73,8 @@ jobs:
         with:
           name: zip-echarts${{ matrix.echarts }}
           path: |
-            g-echarts-*-echarts${{ matrix.echarts }}.zip
-            g-echarts-*-echarts${{ matrix.echarts }}.zip.sha256
+            community-echarts-panel-*-echarts${{ matrix.echarts }}.zip
+            community-echarts-panel-*-echarts${{ matrix.echarts }}.zip.sha256
           retention-days: 7
 
   release:

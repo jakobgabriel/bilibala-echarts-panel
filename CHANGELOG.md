@@ -2,6 +2,47 @@
 
 All notable changes to this project will be documented in this file.
 
+## v2.6.0
+
+**Breaking**: plugin id renamed `g-echarts` → `community-echarts-panel`,
+and `aliasIDs` removed from `plugin.json`. The plugin now passes the
+`@grafana/plugin-validator` schema check, which is the same gate
+Grafana's catalog submission flow runs.
+
+- **Plugin id rename: `g-echarts` → `community-echarts-panel`.** Forced
+  by the validator's regex
+  `^[0-9a-z]+\-([0-9a-z]+\-)?(app|panel|datasource)$` and the
+  "org-name-type" naming convention. The new id has 3 hyphen-separated
+  parts and ends with `-panel` as required.
+- **`aliasIDs` removed from `plugin.json`.** The validator's bundled
+  schema rejects `aliasIDs` as an additional property; keeping it via a
+  validator config override would still block catalog submission since
+  Grafana's catalog-side schema is the same. Trade-off: dashboards
+  exported from older versions (`bilibala-echarts-panel`,
+  `grafana-echarts`, or v2.5.0 `g-echarts`) no longer transparently
+  resolve. Users have to find-replace the panel `type` in dashboard
+  JSON; the README's Migration section documents the manual rewrite
+  plus a one-liner `find … sed` for bulk migration of provisioned
+  dashboards.
+- **Variant zips renamed.** Release artifacts are now
+  `community-echarts-panel-2.6.0-echarts4.zip` and
+  `community-echarts-panel-2.6.0-echarts5.zip` (plus `.sha256`
+  sidecars). The plugin folder name and the
+  `allow_loading_unsigned_plugins` value also change.
+- **Display name updated.** `plugin.json#name`: `"G-ECharts"` →
+  `"Community ECharts"`. The visualization picker in Grafana now shows
+  "Community ECharts".
+
+### Migration steps
+
+1. Upgrade the plugin (`grafana-cli plugins install` with the new URL,
+   or unzip the new zip into `/var/lib/grafana/plugins/`).
+2. Set `allow_loading_unsigned_plugins = community-echarts-panel` in
+   `grafana.ini` (replacing any earlier id).
+3. Find-replace `"type"` values in dashboard JSON using the table in
+   the README's Migration section.
+4. Restart Grafana.
+
 ## v2.5.0
 
 This is the first published release of the Grafana 10–13 fork.

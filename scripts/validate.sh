@@ -4,7 +4,7 @@
 #
 # Usage:
 #   scripts/validate.sh dist                                 # zip dist/ and validate
-#   scripts/validate.sh g-echarts-2.5.0-echarts4.zip         # validate an existing zip
+#   scripts/validate.sh community-echarts-panel-2.5.0-echarts4.zip         # validate an existing zip
 #
 # The validator only fetches plugins via URL, so we serve the zip on a
 # local HTTP port and point the validator at it. Errors fail the build;

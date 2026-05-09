@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Build the plugin against a specific ECharts major.
 # Usage: scripts/build-variant.sh <4|5>
-# Output: dist/  +  g-echarts-<version>-echarts<major>.zip(.sha256)
+# Output: dist/  +  community-echarts-panel-<version>-echarts<major>.zip(.sha256)
 #
 # The default `npm run build` produces a v4 build because package.json
 # pins echarts@^4.9.0 plus matching add-on majors. This script swaps

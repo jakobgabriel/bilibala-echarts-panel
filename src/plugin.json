@@ -1,8 +1,7 @@
 {
   "type": "panel",
-  "name": "G-ECharts",
-  "id": "g-echarts",
-  "aliasIDs": ["bilibala-echarts-panel", "grafana-echarts"],
+  "name": "Community ECharts",
+  "id": "community-echarts-panel",
   "info": {
     "description": "ECharts panel for Grafana 11–13 (fork of bilibala-echarts-panel by @Billiballa)",
     "author": {

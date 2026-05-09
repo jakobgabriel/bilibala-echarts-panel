@@ -1,6 +1,6 @@
 {
-  "name": "g-echarts",
-  "version": "2.5.0",
+  "name": "community-echarts-panel",
+  "version": "2.6.0",
   "description": "ECharts panel for Grafana 11–13 (fork of bilibala-echarts-panel by @Billiballa)",
   "scripts": {
     "build": "webpack -c ./.config/webpack/webpack.config.ts --env production",
