@@ -30,6 +30,9 @@ jobs:
       - run: npm run test:ci
       - run: npm run build
 
+      - name: Validate plugin (@grafana/plugin-validator)
+        run: scripts/validate.sh dist
+
       - name: Upload built plugin
         uses: actions/upload-artifact@v4
         with:

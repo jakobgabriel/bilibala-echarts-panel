@@ -11,7 +11,7 @@
 ![issues](https://img.shields.io/github/issues-closed/jakobgabriel/bilibala-echarts-panel)
 ![stars](https://img.shields.io/github/stars/jakobgabriel/bilibala-echarts-panel?style=social)
 
-![hero](src/img/screenshot.png)
+![hero](https://raw.githubusercontent.com/jakobgabriel/bilibala-echarts-panel/master/src/img/screenshot.png)
 
 ## Origin & credits
 
@@ -30,15 +30,15 @@ The CI gate runs `@grafana/plugin-validator`, type-check, unit tests, and a smok
 
 ### Grafana 11.6.14
 
-![G-ECharts panel-edit view on Grafana 11.6.14](src/img/usage-edit-grafana-11.png)
+![G-ECharts panel-edit view on Grafana 11.6.14](https://raw.githubusercontent.com/jakobgabriel/bilibala-echarts-panel/master/src/img/usage-edit-grafana-11.png)
 
 ### Grafana 12.4.3
 
-![G-ECharts panel-edit view on Grafana 12.4.3](src/img/usage-edit-grafana-12.png)
+![G-ECharts panel-edit view on Grafana 12.4.3](https://raw.githubusercontent.com/jakobgabriel/bilibala-echarts-panel/master/src/img/usage-edit-grafana-12.png)
 
 ### Grafana 13.0.1
 
-![G-ECharts panel-edit view on Grafana 13.0.1](src/img/usage-edit-grafana-13.png)
+![G-ECharts panel-edit view on Grafana 13.0.1](https://raw.githubusercontent.com/jakobgabriel/bilibala-echarts-panel/master/src/img/usage-edit-grafana-13.png)
 
 To reproduce the captures locally:
 

@@ -77,6 +77,17 @@ and this one.
   documented (`grafana-cli --pluginUrl`, manual unzip, Docker bind
   mount), each with the variant zip URL and a SHA256-verification
   snippet.
+- README image references are absolute (`raw.githubusercontent.com`)
+  so they render outside GitHub (e.g. on the Grafana plugin catalog
+  if we ever publish there).
+- **`@grafana/plugin-validator` is wired into CI.** Every push runs
+  `scripts/validate.sh dist` (in `smoke.yml`); the release workflow
+  validates each variant zip before signing and publishing
+  (`release.yml`). The validator catches catalog-blocking issues
+  (relative README links, malformed `plugin.json`, missing fields)
+  before they reach a release. Warnings (e.g. shields.io / external
+  link-check false positives, sponsorship-link recommendation) are
+  surfaced but non-fatal.
 
 The user-visible chart function signature `(data, theme,
 echartsInstance, echarts)` is unchanged. `theme.type` and

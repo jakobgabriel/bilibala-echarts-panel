@@ -44,6 +44,9 @@ jobs:
       - run: npm run test:ci
       - run: scripts/build-variant.sh ${{ matrix.echarts }}
 
+      - name: Validate plugin (@grafana/plugin-validator)
+        run: scripts/validate.sh "g-echarts-$(node -p "require('./dist/plugin.json').info.version")-echarts${{ matrix.echarts }}.zip"
+
       - name: Sign and re-package
         run: |
           # @grafana/sign-plugin signs dist/ in place; re-package after
