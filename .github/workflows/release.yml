@@ -1,33 +1,26 @@
 name: Release
 
-# Auto-release on every merge to master once Smoke is green and the
-# version in package.json hasn't been released yet.
+# Auto-publish a GitHub Release on master merge when package.json's
+# version is new. Releases are unsigned by default; set
+# GRAFANA_ACCESS_POLICY_TOKEN as a repo secret later if you want signed
+# plugins (the canonical package-plugin action picks it up
+# automatically; nothing here changes).
 #
-# Two trigger paths:
-#   1. Smoke workflow completes successfully on master/main → this
-#      workflow auto-fires. The `gate` job below checks whether the
-#      package.json version matches an already-published tag; if not,
-#      the build matrix runs and a draft release is published.
-#   2. Manual `vX.Y.Z` tag push (or workflow_dispatch) → release runs
-#      unconditionally. Used for emergency cuts or re-runs.
+# Triggers:
+#   - push: branches: [master, main]  → fires on every master merge
+#   - push: tags: ['v*']               → manual cuts via `git push --follow-tags`
+#   - workflow_dispatch                → manual UI button (always publishes)
 #
-# Cutting a release becomes a normal PR flow:
-#   1. Open a PR that bumps `package.json#version` (and updates
-#      CHANGELOG).
-#   2. Merge the PR to master.
-#   3. Smoke runs on master, finishes green.
-#   4. This workflow fires, sees the new version, builds + signs both
-#      ECharts variants, and creates a draft GitHub Release.
-#   5. The maintainer reviews the draft and clicks Publish.
+# Cutting a release:
+#   1. PR bumps package.json#version (and CHANGELOG entry).
+#   2. Merge to master.
+#   3. This workflow auto-fires, builds + publishes both ECharts variants.
+#   4. New release lands at /releases/latest/ — `wget`-able immediately.
 
 on:
   push:
-    tags:
-      - 'v*'
-  workflow_run:
-    workflows: ['Smoke']
-    types: [completed]
     branches: [master, main]
+    tags: ['v*']
   workflow_dispatch:
 
 env:
@@ -35,70 +28,50 @@ env:
 
 permissions:
   contents: write
-  id-token: write
-  attestations: write
-  actions: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   gate:
     # Decide whether this run should publish a release. Publishes when:
-    #   - the trigger is a tag push (refs/tags/v*), or
-    #   - the trigger is workflow_dispatch, or
-    #   - the trigger is workflow_run with conclusion=success AND the
-    #     package.json version doesn't already have a matching tag.
+    #   - the trigger is a tag push (always), or
+    #   - the trigger is workflow_dispatch (always), or
+    #   - the trigger is a master push AND the package.json version
+    #     doesn't already have a matching tag.
     name: Decide whether to release
     runs-on: ubuntu-latest
     outputs:
       should-release: ${{ steps.gate.outputs.should-release }}
       tag: ${{ steps.gate.outputs.tag }}
-      sha: ${{ steps.gate.outputs.sha }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          # On workflow_run, GITHUB_SHA points at the workflow_run's
-          # head, not master's HEAD. Check out that exact commit so
-          # package.json reflects what Smoke just validated.
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - id: gate
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           set -euo pipefail
-          SHA="${{ github.event.workflow_run.head_sha || github.sha }}"
-          echo "sha=${SHA}" >> "$GITHUB_OUTPUT"
-
-          # Tag push: always release. Tag is github.ref_name.
+          # Tag push: always release.
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
             echo "Trigger: tag push (${GITHUB_REF_NAME})"
             echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
-            echo "should-release=true" >> "$GITHUB_OUTPUT"
+            echo "should-release=true"   >> "$GITHUB_OUTPUT"
             exit 0
           fi
-
-          # workflow_dispatch: always release. Tag from package.json.
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            VERSION=$(node -p "require('./package.json').version")
-            echo "Trigger: workflow_dispatch (v${VERSION})"
-            echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
-            echo "should-release=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # workflow_run: only release if Smoke succeeded AND the
-          # package.json version is new.
-          CONCLUSION="${{ github.event.workflow_run.conclusion }}"
-          if [[ "$CONCLUSION" != "success" ]]; then
-            echo "Trigger: workflow_run (Smoke conclusion=${CONCLUSION}) — skipping"
-            echo "should-release=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
           VERSION=$(node -p "require('./package.json').version")
           TAG="v${VERSION}"
-          echo "Trigger: workflow_run (Smoke succeeded on ${SHA}). Checking if ${TAG} is already released..."
-
+          # workflow_dispatch: always release.
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            echo "Trigger: workflow_dispatch (${TAG})"
+            echo "tag=${TAG}"          >> "$GITHUB_OUTPUT"
+            echo "should-release=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          # push to master/main: only release if the version is new.
           STATUS=$(curl -sS -o /dev/null -w "%{http_code}" \
             -H "Authorization: token ${GH_TOKEN}" \
             "https://api.github.com/repos/${REPO}/git/ref/tags/${TAG}")
@@ -107,7 +80,7 @@ jobs:
             echo "should-release=false" >> "$GITHUB_OUTPUT"
           else
             echo "Tag ${TAG} missing — will release."
-            echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+            echo "tag=${TAG}"          >> "$GITHUB_OUTPUT"
             echo "should-release=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -122,13 +95,15 @@ jobs:
         echarts: ["4", "5"]
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.gate.outputs.sha }}
 
       - name: Pin ECharts ${{ matrix.echarts }} variant
         run: scripts/prep-variant.sh ${{ matrix.echarts }}
 
-      - name: Sign + package via canonical Grafana action
+      - name: Package via canonical Grafana action (unsigned when no token)
+        # The action signs only if `policy_token` is non-empty. Passing
+        # the secret as-is is safe even when the secret isn't set —
+        # ${{ secrets.X }} resolves to '' and the action's internal
+        # `if: inputs.policy_token != ''` skips the signing step.
         id: package
         uses: grafana/plugin-actions/package-plugin@main
         with:
@@ -152,12 +127,6 @@ jobs:
       - name: Validate plugin (@grafana/plugin-validator)
         run: scripts/validate.sh "${{ steps.rename.outputs.archive }}"
 
-      - name: Generate Sigstore attestation
-        if: ${{ secrets.GRAFANA_ACCESS_POLICY_TOKEN != '' }}
-        uses: actions/attest-build-provenance@v3
-        with:
-          subject-path: ${{ steps.rename.outputs.archive }}
-
       - uses: actions/upload-artifact@v4
         with:
           name: zip-echarts${{ matrix.echarts }}
@@ -167,52 +136,78 @@ jobs:
           retention-days: 7
 
   release:
-    name: Publish draft release
+    name: Publish GitHub Release
     needs: [gate, build]
     if: needs.gate.outputs.should-release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: ${{ needs.gate.outputs.sha }}
 
       - id: tag
         run: |
           TAG="${{ needs.gate.outputs.tag }}"
-          echo "tag=${TAG}"           >> "$GITHUB_OUTPUT"
-          echo "version=${TAG#v}"     >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}"       >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: true
 
+      - name: Stage unversioned aliases for /releases/latest/download/
+        # GitHub resolves /releases/latest/download/<asset> by asset name
+        # against the release marked `latest`. With `make_latest: true`
+        # every auto-release becomes the latest, so a wget against the
+        # unversioned alias always pulls the newest published variant —
+        # no URL bake-in for Dockerfiles or scripts.
+        run: |
+          set -euo pipefail
+          cd artifacts
+          V="${{ steps.tag.outputs.version }}"
+          for n in 4 5; do
+            cp "community-echarts-panel-${V}-echarts${n}.zip"      "community-echarts-panel-echarts${n}.zip"
+            cp "community-echarts-panel-${V}-echarts${n}.zip.sha1" "community-echarts-panel-echarts${n}.zip.sha1"
+          done
+          ls -la
+
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          target_commitish: ${{ needs.gate.outputs.sha }}
           name: ${{ steps.tag.outputs.tag }}
-          draft: true
+          draft: false
+          make_latest: 'true'
           generate_release_notes: true
           files: artifacts/*
           fail_on_unmatched_files: true
           body: |
-            **Draft release for catalog submission.**
+            **Auto-published release** (unsigned).
 
-            Two ECharts variants attached:
+            Set `allow_loading_unsigned_plugins = community-echarts-panel`
+            in `grafana.ini`, or pass
+            `GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=community-echarts-panel`
+            as an env var to your Grafana container.
 
-            | Variant | Asset | Best for |
+            Two ECharts variants attached, each under both a versioned
+            name (pinned) and an unversioned `latest` alias:
+
+            | Variant | Versioned | Unversioned alias |
             |---|---|---|
-            | ECharts 4.9 | `community-echarts-panel-${{ steps.tag.outputs.version }}-echarts4.zip` | Direct upgrade from upstream `bilibala-echarts-panel`; existing v8.5.x dashboards |
-            | ECharts 5.6 | `community-echarts-panel-${{ steps.tag.outputs.version }}-echarts5.zip` | New panels, modern ECharts API |
+            | ECharts 4.9 | `community-echarts-panel-${{ steps.tag.outputs.version }}-echarts4.zip` | `community-echarts-panel-echarts4.zip` |
+            | ECharts 5.6 | `community-echarts-panel-${{ steps.tag.outputs.version }}-echarts5.zip` | `community-echarts-panel-echarts5.zip` |
 
-            Each comes with a `.sha1` sidecar suitable for the Grafana plugin catalog submission form. Sigstore build provenance attestations are generated when `GRAFANA_ACCESS_POLICY_TOKEN` is configured.
+            ### Quick install (always-latest)
 
-            ### To submit to the Grafana catalog
+            ```sh
+            wget -qO /tmp/p.zip \
+              https://github.com/${{ github.repository }}/releases/latest/download/community-echarts-panel-echarts5.zip \
+              && sudo unzip -q /tmp/p.zip -d /var/lib/grafana/plugins \
+              && rm /tmp/p.zip \
+              && sudo systemctl restart grafana-server
+            ```
 
-            1. Edit this draft release and click **Publish Release**.
-            2. https://grafana.com/auth/sign-in → My Plugins → Submit New Plugin.
-            3. Plugin URL: `https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/community-echarts-panel-${{ steps.tag.outputs.version }}-echarts5.zip`
-            4. Source code URL: `https://github.com/${{ github.repository }}`
-            5. SHA1: paste the contents of the `community-echarts-panel-${{ steps.tag.outputs.version }}-echarts5.zip.sha1` sidecar.
-            6. Testing guidance: see the README's *Install* section.
+            Swap `-echarts5` → `-echarts4` for the v4 variant.
+
+            To turn on plugin signing: add `GRAFANA_ACCESS_POLICY_TOKEN`
+            as a repo secret (https://grafana.com/orgs → Access policies
+            → New, scope `plugins:write`). The next release picks it up
+            automatically; no workflow change required.
