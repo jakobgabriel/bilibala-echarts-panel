@@ -86,7 +86,7 @@ export const SimplePanel: React.FC<PanelProps<SimpleOptions>> = ({ options, data
       chart?.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [echartRef.current, options.followTheme, compatTheme.type]);
+  }, [options.followTheme, compatTheme.type]);
 
   useEffect(() => {
     chart?.resize();
