@@ -1,10 +1,11 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { PanelProps, GrafanaTheme } from '@grafana/data';
-import { withTheme } from '@grafana/ui';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { PanelProps } from '@grafana/data';
+import { useTheme2 } from '@grafana/ui';
 import { debounce } from 'lodash';
 import echarts from 'echarts';
-import { css, cx } from 'emotion';
-import { SimpleOptions, funcParams } from 'types';
+import { css, cx } from '@emotion/css';
+import { SimpleOptions, funcParams } from './types';
+import { shimData, shimTheme } from './compat';
 
 // just comment it if don't need it
 import 'echarts-wordcloud';
@@ -13,13 +14,13 @@ import 'echarts-gl';
 
 // auto register map
 const maps = (require as any).context('./map', false, /\.json/);
-maps.keys().map((m: string) => {
+maps.keys().forEach((m: string) => {
   const matched = m.match(/\.\/([0-9a-zA-Z_]*)\.json/);
   if (matched) {
     echarts.registerMap(matched[1], maps(m));
   } else {
     console.warn(
-      "Can't register map: JSON file Should be named according to the following rules: /([0-9a-zA-Z_]*).json/."
+      "Can't register map: JSON file should be named according to the following rules: /([0-9a-zA-Z_]*).json/."
     );
   }
 });
@@ -40,12 +41,12 @@ const getStyles = () => ({
   `,
 });
 
-interface Props extends PanelProps<SimpleOptions> {
-  theme: GrafanaTheme;
-}
-
-const PartialSimplePanel: React.FC<Props> = ({ options, data, width, height, theme }) => {
+export const SimplePanel: React.FC<PanelProps<SimpleOptions>> = ({ options, data, width, height }) => {
   const styles = getStyles();
+  const theme = useTheme2();
+  const compatTheme = useMemo(() => shimTheme(theme), [theme]);
+  const compatData = useMemo(() => shimData(data), [data]);
+
   const echartRef = useRef<HTMLDivElement>(null);
   const [chart, setChart] = useState<echarts.ECharts>();
   const [tips, setTips] = useState<Error | undefined>();
@@ -61,12 +62,12 @@ const PartialSimplePanel: React.FC<Props> = ({ options, data, width, height, the
       try {
         setTips(undefined);
         chart.clear();
-        let getOption = new Function(funcParams, options.getOption);
-        const o = getOption(data, theme, chart, echarts);
+        const getOption = new Function(funcParams, options.getOption);
+        const o = getOption(compatData, compatTheme, chart, echarts);
         o && chart.setOption(o);
       } catch (err) {
         console.error('Editor content error!', err);
-        setTips(err);
+        setTips(err as Error);
       }
     },
     150,
@@ -77,7 +78,7 @@ const PartialSimplePanel: React.FC<Props> = ({ options, data, width, height, the
     if (echartRef.current) {
       chart?.clear();
       chart?.dispose();
-      setChart(echarts.init(echartRef.current, options.followTheme ? theme.type : undefined));
+      setChart(echarts.init(echartRef.current, options.followTheme ? compatTheme.type : undefined));
     }
 
     return () => {
@@ -85,7 +86,7 @@ const PartialSimplePanel: React.FC<Props> = ({ options, data, width, height, the
       chart?.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [echartRef.current, options.followTheme]);
+  }, [echartRef.current, options.followTheme, compatTheme.type]);
 
   useEffect(() => {
     chart?.resize();
@@ -102,8 +103,8 @@ const PartialSimplePanel: React.FC<Props> = ({ options, data, width, height, the
       {tips && (
         <div className={styles.tips}>
           <h5 className={styles.tipsTitle}>Editor content error!</h5>
-          {(tips.stack || tips.message).split('\n').map(s => (
-            <p>{s}</p>
+          {(tips.stack || tips.message).split('\n').map((s, i) => (
+            <p key={i}>{s}</p>
           ))}
         </div>
       )}
@@ -120,5 +121,3 @@ const PartialSimplePanel: React.FC<Props> = ({ options, data, width, height, the
     </>
   );
 };
-
-export const SimplePanel = withTheme(PartialSimplePanel);
