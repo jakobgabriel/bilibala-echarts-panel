@@ -18,7 +18,7 @@ if [[ -z "$VERSION" ]]; then
   exit 2
 fi
 
-PLUGIN_ID="bilibala-echarts-panel"
+PLUGIN_ID="grafana-echarts"
 PORT="${SMOKE_PORT:-3000}"
 CONTAINER="grafana-smoke-${PLUGIN_ID}-$$"
 PLUGIN_DIR="$(cd "$(dirname "$0")/.." && pwd)/dist"
@@ -86,4 +86,4 @@ echo "==> Fetching /public/plugins/${PLUGIN_ID}/module.js"
 curl -fsS -o /dev/null "http://localhost:${PORT}/public/plugins/${PLUGIN_ID}/module.js"
 
 echo
-echo "PASS: bilibala-echarts-panel loaded on grafana/grafana:${VERSION}"
+echo "PASS: ${PLUGIN_ID} loaded on grafana/grafana:${VERSION}"
