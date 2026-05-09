@@ -4,6 +4,13 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      # Allow the release to fire from the development branch when the
+      # head commit is a `chore(release): vX.Y.Z` commit. The job-level
+      # `if` below gates the actual publish so unrelated pushes to this
+      # branch don't accidentally re-publish.
+      - claude/echarts-grafana-13-upgrade-KBMct
+  workflow_dispatch:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -14,6 +21,10 @@ permissions:
 jobs:
   build:
     name: Build echarts${{ matrix.echarts }}
+    if: |
+      startsWith(github.ref, 'refs/tags/v') ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'chore(release):'))
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -37,7 +48,11 @@ jobs:
         run: |
           # @grafana/sign-plugin signs dist/ in place; re-package after
           # so the variant zip contains the signed MANIFEST.txt.
-          npx --yes @grafana/sign-plugin@latest
+          if [ -n "$GRAFANA_ACCESS_POLICY_TOKEN" ]; then
+            npx --yes @grafana/sign-plugin@latest
+          else
+            echo "GRAFANA_ACCESS_POLICY_TOKEN not set; publishing unsigned variant zip."
+          fi
           PLUGIN_ID=$(node -p "require('./dist/plugin.json').id")
           VERSION=$(node -p "require('./dist/plugin.json').info.version")
           ARTIFACT="${PLUGIN_ID}-${VERSION}-echarts${{ matrix.echarts }}.zip"
@@ -61,9 +76,29 @@ jobs:
 
   release:
     name: Publish GitHub Release
+    if: |
+      startsWith(github.ref, 'refs/tags/v') ||
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && startsWith(github.event.head_commit.message, 'chore(release):'))
     needs: build
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute release tag from package.json
+        id: tag
+        run: |
+          # On a tag push, github.ref_name is already the tag.
+          # Otherwise read the version from package.json.
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF_NAME}"
+          else
+            VERSION=$(node -p "require('./package.json').version")
+            TAG="v${VERSION}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Will publish release tag: ${TAG}"
+
       - uses: actions/download-artifact@v4
         with:
           path: artifacts
@@ -72,6 +107,8 @@ jobs:
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: ${{ steps.tag.outputs.tag }}
           files: artifacts/*
           fail_on_unmatched_files: true
           generate_release_notes: true
