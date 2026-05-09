@@ -60,8 +60,8 @@ Each tagged release ships **two signed zips** corresponding to the bundled EChar
 
 | Bundled ECharts | Asset | Best for |
 |---|---|---|
-| 4.9 (default) | `g-echarts-2.4.0-echarts4.zip` | Direct upgrade from upstream `bilibala-echarts-panel`; existing v8.5.x dashboards |
-| 5.x           | `g-echarts-2.4.0-echarts5.zip` | New panels, modern ECharts API |
+| 4.9 (default) | `g-echarts-2.5.0-echarts4.zip` | Direct upgrade from upstream `bilibala-echarts-panel`; existing v8.5.x dashboards |
+| 5.x           | `g-echarts-2.5.0-echarts5.zip` | New panels, modern ECharts API |
 
 ECharts 6 is intentionally not bundled — at the time of release the add-on ecosystem (`echarts-gl`, `echarts-liquidfill`, `echarts-wordcloud`) had not yet shipped v6-compatible majors.
 
@@ -78,23 +78,23 @@ allow_loading_unsigned_plugins = g-echarts
 ### Path A — `grafana-cli` (simplest)
 
 ```sh
-grafana-cli --pluginUrl https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.4.0/g-echarts-2.4.0-echarts4.zip plugins install g-echarts
+grafana-cli --pluginUrl https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.5.0/g-echarts-2.5.0-echarts4.zip plugins install g-echarts
 sudo systemctl restart grafana-server
 ```
 
 Verify the SHA256 first (each release also publishes `<asset>.sha256`):
 
 ```sh
-curl -sLO https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.4.0/g-echarts-2.4.0-echarts4.zip
-curl -sLO https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.4.0/g-echarts-2.4.0-echarts4.zip.sha256
-sha256sum -c g-echarts-2.4.0-echarts4.zip.sha256
+curl -sLO https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.5.0/g-echarts-2.5.0-echarts4.zip
+curl -sLO https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.5.0/g-echarts-2.5.0-echarts4.zip.sha256
+sha256sum -c g-echarts-2.5.0-echarts4.zip.sha256
 ```
 
 ### Path B — manual unzip (no tooling)
 
 ```sh
-curl -sLO https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.4.0/g-echarts-2.4.0-echarts4.zip
-sudo unzip -o g-echarts-2.4.0-echarts4.zip -d /var/lib/grafana/plugins/
+curl -sLO https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.5.0/g-echarts-2.5.0-echarts4.zip
+sudo unzip -o g-echarts-2.5.0-echarts4.zip -d /var/lib/grafana/plugins/
 sudo systemctl restart grafana-server
 ```
 

@@ -2,7 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
-## v2.4.0
+## v2.5.0
+
+This is the first published release of the Grafana 10–13 fork.
+v2.4.0 was developed but never tagged; everything below is the
+consolidated changeset between Billiballa's last upstream release
+and this one.
 
 - **Plugin id renamed: `bilibala-echarts-panel` → `g-echarts`.**
   Breaking for installs (the plugin folder, install URL, and
