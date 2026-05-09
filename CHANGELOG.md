@@ -48,16 +48,21 @@ Grafana's catalog submission flow runs.
 - **`.github/workflows/release.yml` adopts the canonical Grafana
   publishing flow.** The matrix build now uses
   `grafana/plugin-actions/package-plugin@main` for sign + zip (the
-  same action Grafana's docs recommend). The dev-branch trigger
-  workaround is gone — the workflow only fires on `vX.Y.Z` tag pushes
-  (and `workflow_dispatch` for manual recovery), per "always release
-  from master".
+  same action Grafana's docs recommend).
+- **Releases auto-fire on every merge to master.** The workflow's
+  primary trigger is `workflow_run` against the `Smoke` workflow on
+  `master` / `main`. When Smoke completes successfully, a `gate` job
+  reads the `version` from `package.json` and checks whether a
+  matching `vX.Y.Z` tag already exists. If it does, the workflow
+  exits cleanly (no spurious releases on every commit). If the
+  version is new, the build matrix runs and a draft release is
+  published. Tag-push (`v*`) and `workflow_dispatch` are kept as
+  manual fallbacks for emergency cuts or re-runs.
 - **Each release is a draft.** The release job uses
   `softprops/action-gh-release@v2 with draft: true`. The maintainer
   reviews the assets, edits release notes if needed, then clicks
   Publish. The draft body includes a copy-pasteable catalog
-  submission walk-through (URL, source URL, SHA1) populated from the
-  workflow's outputs.
+  submission walk-through (URL, source URL, SHA1).
 - **Sigstore build provenance attestations** are generated when
   `GRAFANA_ACCESS_POLICY_TOKEN` is set, via
   `actions/attest-build-provenance@v3`, providing cryptographic proof
@@ -71,16 +76,15 @@ Grafana's catalog submission flow runs.
   - `scripts/build-variant.sh <4|5>` is now a thin wrapper around
     `prep-variant.sh + npm ci + npm run build + zip` for local-only
     builds (CI uses the canonical action).
-- **Cutting a release** is now the standard semver-bump + tag flow:
+- **Cutting a release** is now a normal PR flow — no local tag push:
   ```
-  git checkout master && git pull
-  npm version 2.6.0 --no-git-tag-version
-  git commit -am "chore(release): v2.6.0"
-  git tag -a v2.6.0 -m "v2.6.0"
-  git push origin master --follow-tags
+  # 1. open a PR that bumps package.json#version + CHANGELOG entry
+  # 2. merge to master
+  # 3. Smoke runs, finishes green
+  # 4. Release workflow auto-fires, builds + signs both variants,
+  #    creates draft v<new-version> release
+  # 5. maintainer reviews the draft, clicks Publish
   ```
-  The workflow builds, signs, validates, and attests both ECharts
-  variants, then attaches them all to a draft v2.6.0 GitHub Release.
 
 ## v2.5.0
 
