@@ -1,0 +1,45 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits"
+  ],
+  "schedule": ["before 8am on monday"],
+  "labels": ["dependencies"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["^\\.github/workflows/smoke\\.yml$"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>.*?) depName=(?<depName>.*?)\\s+- \"(?<currentValue>.*?)\""
+      ]
+    }
+  ],
+  "packageRules": [
+    {
+      "matchManagers": ["custom.regex"],
+      "matchDepNames": ["grafana/grafana"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true,
+      "platformAutomerge": true,
+      "description": "Auto-merge Grafana patch bumps when CI is green; minor/major stay manual."
+    },
+    {
+      "matchPackagePatterns": ["^@grafana/"],
+      "groupName": "grafana SDK",
+      "matchUpdateTypes": ["patch", "minor"]
+    },
+    {
+      "matchPackageNames": [
+        "echarts",
+        "echarts-gl",
+        "echarts-liquidfill",
+        "echarts-wordcloud",
+        "@types/echarts"
+      ],
+      "enabled": false,
+      "description": "Pinned per release variant by scripts/build-variant.sh; not the source of truth."
+    }
+  ]
+}

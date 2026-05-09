@@ -45,8 +45,11 @@ jobs:
       fail-fast: false
       matrix:
         grafana:
+          # renovate: datasource=docker depName=grafana/grafana
           - "11.6.14"
+          # renovate: datasource=docker depName=grafana/grafana
           - "12.4.3"
+          # renovate: datasource=docker depName=grafana/grafana
           - "13.0.1"
     steps:
       - uses: actions/checkout@v4
