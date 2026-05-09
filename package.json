@@ -1,7 +1,7 @@
 {
-  "name": "grafana-echarts",
+  "name": "g-echarts",
   "version": "2.4.0",
-  "description": "ECharts panel for Grafana 10–13 (fork of bilibala-echarts-panel)",
+  "description": "ECharts panel for Grafana 11–13 (fork of bilibala-echarts-panel by @Billiballa)",
   "scripts": {
     "build": "webpack -c ./.config/webpack/webpack.config.ts --env production",
     "dev": "webpack -w -c ./.config/webpack/webpack.config.ts --env development",

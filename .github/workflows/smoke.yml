@@ -45,12 +45,36 @@ jobs:
       fail-fast: false
       matrix:
         grafana:
-          - "8.5.27"
-          - "9.5.21"
-          - "10.4.19"
           - "11.6.14"
           - "12.4.3"
           - "13.0.1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download built plugin
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+
+      - name: Run smoke test against grafana/grafana:${{ matrix.grafana }}
+        run: scripts/smoke.sh "${{ matrix.grafana }}"
+
+  smoke-informational:
+    # Plugin's declared floor is Grafana 11. These EOL versions are kept
+    # as a "does the build still happen to load?" signal only.
+    # 10.x rejects aliasIDs in plugin.json and will fail; that's expected.
+    name: Grafana ${{ matrix.grafana }} (informational)
+    needs: build
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        grafana:
+          - "8.5.27"
+          - "9.5.21"
+          - "10.4.19"
     steps:
       - uses: actions/checkout@v4
 

@@ -1,6 +1,6 @@
 import type { DataFrame, Field, GrafanaTheme2, PanelData } from '@grafana/data';
 
-const SHIMMED = Symbol.for('grafana-echarts/shimmed');
+const SHIMMED = Symbol.for('g-echarts/shimmed');
 
 export interface CompatTheme extends GrafanaTheme2 {
   type: 'dark' | 'light';

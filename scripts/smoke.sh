@@ -18,7 +18,7 @@ if [[ -z "$VERSION" ]]; then
   exit 2
 fi
 
-PLUGIN_ID="grafana-echarts"
+PLUGIN_ID="g-echarts"
 PORT="${SMOKE_PORT:-3000}"
 CONTAINER="grafana-smoke-${PLUGIN_ID}-$$"
 PLUGIN_DIR="$(cd "$(dirname "$0")/.." && pwd)/dist"

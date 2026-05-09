@@ -4,14 +4,24 @@ All notable changes to this project will be documented in this file.
 
 ## v2.4.0
 
-- **Plugin id renamed: `bilibala-echarts-panel` → `grafana-echarts`.**
-  This is breaking for installs (the plugin folder, install URL, and
-  `allow_loading_unsigned_plugins` entry all change). It is **not**
-  breaking for dashboards: `plugin.json` declares
-  `aliasIDs: ["bilibala-echarts-panel"]`, so existing dashboards
-  (including those exported from a Grafana 8.5.x instance running the
-  original `bilibala-echarts-panel`) resolve their panels to the new
-  plugin transparently — no manual JSON edit needed.
+- **Plugin id renamed: `bilibala-echarts-panel` → `g-echarts`.**
+  Breaking for installs (the plugin folder, install URL, and
+  `allow_loading_unsigned_plugins` entry all change). **Not** breaking
+  for dashboards: `plugin.json` declares
+  `aliasIDs: ["bilibala-echarts-panel", "grafana-echarts"]`, so
+  existing dashboards (including those exported from a Grafana 8.5.x
+  instance running Billiballa's original `bilibala-echarts-panel`)
+  resolve their panels to the new plugin transparently — no manual
+  JSON edit needed. The `grafana-echarts` alias also covers anyone who
+  built locally from the never-released intermediate commit.
+- **Support floor bumped from Grafana 10 to Grafana 11.** `aliasIDs`
+  is a Grafana 11+ field; on Grafana 10 the unknown key causes the
+  plugin loader to reject `plugin.json` outright (`error="can not set
+  alias in plugin.json"`). Grafana 10 has been EOL since August 2024,
+  so the cleanest fix is to drop it from the supported range. Users
+  on 10.x who need transparent dashboard migration should upgrade to
+  Grafana 11+; users who can't upgrade should stay on the upstream
+  `bilibala-echarts-panel`.
 - Charts now inherit Grafana's full theme palette when **Follow Grafana
   Theme** is on. Series colors come from `theme.visualization.palette`;
   text, tooltip, axis, and grid colors come from `theme.colors.*` and
@@ -20,9 +30,14 @@ All notable changes to this project will be documented in this file.
   behavior — a coarse switch between ECharts's built-in `'dark'` theme
   and its default — is replaced by a `GrafanaTheme2`-derived
   registered theme (`src/grafanaTheme.ts`).
+- README overhauled with prominent attribution to **@Billiballa** as
+  the originator of the plugin, an explicit credits section, and a
+  usage guide with worked examples (bar / pie / heatmap) and
+  screenshot placeholders.
 - Bumped Node engine from `>=22` to `>=24` (matches `.nvmrc`).
-- Smoke matrix expanded to the actual last patch of every supported
-  major: `8.5.27`, `9.5.21`, `10.4.19`, `11.6.14`, `12.4.3`, `13.0.1`.
+- Smoke matrix split into a **gate** (`11.6.14`, `12.4.3`, `13.0.1` —
+  must pass) and an **informational** matrix (`8.5.27`, `9.5.21`,
+  `10.4.19` — `continue-on-error: true`).
 
 ECharts 5→6 migration note (also applies if you are coming from the
 Grafana 8.5 era): if your `getOption` body uses the legacy

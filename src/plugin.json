@@ -1,10 +1,10 @@
 {
   "type": "panel",
-  "name": "Grafana ECharts",
-  "id": "grafana-echarts",
-  "aliasIDs": ["bilibala-echarts-panel"],
+  "name": "G-ECharts",
+  "id": "g-echarts",
+  "aliasIDs": ["bilibala-echarts-panel", "grafana-echarts"],
   "info": {
-    "description": "ECharts panel for Grafana 10–13 (fork of bilibala-echarts-panel)",
+    "description": "ECharts panel for Grafana 11–13 (fork of bilibala-echarts-panel by @Billiballa)",
     "author": {
       "name": "jakobgabriel",
       "url": "https://github.com/jakobgabriel"
@@ -24,7 +24,7 @@
         "url": "https://github.com/jakobgabriel/bilibala-echarts-panel"
       },
       {
-        "name": "Upstream",
+        "name": "Upstream (originator: @Billiballa)",
         "url": "https://github.com/Billiballa/bilibala-echarts-panel"
       },
       {
@@ -42,7 +42,7 @@
     "updated": "%TODAY%"
   },
   "dependencies": {
-    "grafanaDependency": ">=10.0.0",
+    "grafanaDependency": ">=11.0.0",
     "plugins": []
   }
 }
