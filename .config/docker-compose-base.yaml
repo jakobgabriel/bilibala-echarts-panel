@@ -1,7 +1,7 @@
 services:
   grafana:
     user: root
-    container_name: 'bilibala-echarts-panel'
+    container_name: 'grafana-echarts'
 
     build:
       context: .
@@ -13,13 +13,13 @@ services:
     ports:
       - 3000:3000/tcp
     volumes:
-      - ../dist:/var/lib/grafana/plugins/bilibala-echarts-panel
+      - ../dist:/var/lib/grafana/plugins/grafana-echarts
       - ../provisioning:/etc/grafana/provisioning
-      - ..:/root/bilibala-echarts-panel
+      - ..:/root/grafana-echarts
 
     environment:
       NODE_ENV: development
-      GF_LOG_FILTERS: plugin.bilibala-echarts-panel:debug
+      GF_LOG_FILTERS: plugin.grafana-echarts:debug
       GF_LOG_LEVEL: debug
       GF_DATAPROXY_LOGGING: 1
-      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: bilibala-echarts-panel
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: grafana-echarts

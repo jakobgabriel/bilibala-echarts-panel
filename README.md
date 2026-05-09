@@ -1,62 +1,86 @@
-# Grafana Echarts Panel
+# Grafana ECharts Panel
 
-![release](https://img.shields.io/github/v/release/Billiballa/bilibala-echarts-panel)
-![issues](https://img.shields.io/github/issues-closed/Billiballa/bilibala-echarts-panel)
-![stars](https://img.shields.io/github/stars/Billiballa/bilibala-echarts-panel?style=social)
+![release](https://img.shields.io/github/v/release/jakobgabriel/bilibala-echarts-panel)
+![issues](https://img.shields.io/github/issues-closed/jakobgabriel/bilibala-echarts-panel)
+![stars](https://img.shields.io/github/stars/jakobgabriel/bilibala-echarts-panel?style=social)
 
-Echarts panel for grafana 6.3+ & 7.0+, coding with react.
+ECharts panel for Grafana 10–13, written in React.
 
-Code editor is attached in the edit panel to configure the option of [Apache ECharts (incubating)](https://github.com/apache/incubator-echarts).
+A code editor is attached to the panel options to configure the option object passed to [Apache ECharts™](https://echarts.apache.org/).
 
-Support [echarts-wordcloud](https://github.com/ecomfe/echarts-wordcloud), [echarts-liquidfill](https://github.com/ecomfe/echarts-liquidfill) and [echarts-gl](https://github.com/ecomfe/echarts-gl).
+Supports [echarts-wordcloud](https://github.com/ecomfe/echarts-wordcloud), [echarts-liquidfill](https://github.com/ecomfe/echarts-liquidfill), and [echarts-gl](https://github.com/ecomfe/echarts-gl).
 
-![screenshot](https://github.com/Billiballa/bilibala-echarts-panel/raw/master/src/img/screenshot.png)
+![screenshot](src/img/screenshot.png)
 
-## How Use
+## Install
 
-1. Download the packaged [plugin](https://github.com/Billiballa/bilibala-echarts-panel/releases).
-2. Or clone this repo and run ``yarn build``.
-3. Move folder to "/grafana_path/data/plugins".
-3. Restart grafana.
+This plugin is distributed as a GitHub Release zip. The Grafana plugin id is `grafana-echarts`.
 
-## Tips
-
-1. Echarts option in the edit panel will execute when the data from grafana is refreshed, so you should avoid side effects or ensure that the side effects of the last execution can be cleared.
+```sh
+grafana-cli --pluginUrl https://github.com/jakobgabriel/bilibala-echarts-panel/releases/download/v2.4.0/grafana-echarts.zip plugins install grafana-echarts
 ```
+
+Or unpack the zip into `/var/lib/grafana/plugins/grafana-echarts` and restart Grafana.
+
+The plugin is unsigned (community-tier signing); allow it explicitly:
+
+```ini
+# grafana.ini
+[plugins]
+allow_loading_unsigned_plugins = grafana-echarts
+```
+
+## Migrating from `bilibala-echarts-panel`
+
+If you have dashboards from a Grafana 8.5.x instance that used the original `bilibala-echarts-panel`, **no manual edit is needed**. This plugin declares `aliasIDs: ["bilibala-echarts-panel"]` in its `plugin.json`, so Grafana transparently resolves panels with the legacy `"type": "bilibala-echarts-panel"` to `grafana-echarts`. The stored panel options (`followTheme`, `getOption`, …) deserialize cleanly.
+
+The bundled ECharts version was bumped from 4.x to 6.x. Most user-authored `getOption` code is data-driven and unaffected, but if your chart used the legacy `series[].lineStyle.normal` / `series[].itemStyle.normal` syntax (deprecated in ECharts 4, removed in 5), flatten it: `series[].lineStyle` / `series[].itemStyle`.
+
+## Usage notes
+
+The function body in the panel's options receives `(data, theme, echartsInstance, echarts)`. Side effects (event listeners, intervals) must be cleared on each invocation:
+
+```js
 function (data, theme, echartsInstance, echarts) {
-  echartsInstance.off('click') // clear side effects
+  echartsInstance.off('click'); // clear previous handler
   echartsInstance.on('click', () => {
     console.log('Click!');
-  })
-  return {...}
+  });
+  return { /* ECharts option */ };
 }
 ```
-2. Add Map: clone repo, add YourMap.json to **src/map** and run ``yarn build``, panel will auto register it(``echarts.registerMap('YourMap', {...}))``.
 
-## Custom
+`theme` is the modern `GrafanaTheme2`; legacy `theme.type` (`'dark' | 'light'`) is shimmed in for backwards compatibility. `data.series[i].fields[j].values` is a plain array; legacy `.values.buffer` access is also shimmed.
 
-This plugin build with [@grafana/toolkit](https://www.npmjs.com/package/@grafana/toolkit).
-For more information about panels, refer to the documentation on [Panels](https://grafana.com/docs/grafana/latest/features/panels/panels/)
+When **Follow Grafana Theme** is on the chart inherits Grafana's full theme palette — series colors, text, tooltip, axis, and grid line colors all come from `theme.visualization.palette` and `theme.colors.*`. Custom themes shipped in newer Grafana versions are picked up automatically.
 
-1. Install dependencies
-```BASH
-yarn install
-```
-2. Build plugin in development mode or run in watch mode
-```BASH
-yarn dev
-```
-or
-```BASH
-yarn watch
-```
-3. Build plugin in production mode
-```BASH
-yarn build
+To register a map, add `YourMap.json` to `src/map/`, run `npm run build`, and the panel auto-registers it (`echarts.registerMap('YourMap', …)`).
+
+## Develop
+
+```sh
+nvm use         # Node 24
+npm install
+npm run dev     # webpack watch
+npm run server  # docker compose up grafana with the plugin mounted
+npm run test:ci
+npm run typecheck
+npm run lint
+npm run build
 ```
 
-## Learn more
-- [Build a panel plugin tutorial](https://grafana.com/tutorials/build-a-panel-plugin)
-- [Grafana documentation](https://grafana.com/docs/)
-- [Grafana Tutorials](https://grafana.com/tutorials/) - Grafana Tutorials are step-by-step guides that help you make the most of Grafana
-- [Grafana UI Library](https://developers.grafana.com/ui) - UI components to help you build interfaces using Grafana Design System
+## Fork notice
+
+This is a maintained fork of [Billiballa/bilibala-echarts-panel](https://github.com/Billiballa/bilibala-echarts-panel) (Apache-2.0). The fork modernizes the build for Grafana 10–13 (drops `@grafana/toolkit`, migrates to `@grafana/create-plugin`, ECharts 6, React 18, Node 24) while keeping the user-facing `(data, theme, echartsInstance, echarts)` contract intact via the compatibility shim in `src/compat.ts`.
+
+The original `LICENSE` (Apache-2.0) is preserved unchanged.
+
+## Trademarks
+
+Powered by **Apache ECharts™**, a trademark of The Apache Software Foundation.
+
+This project is not affiliated with, endorsed by, or sponsored by The Apache Software Foundation, Apache ECharts, or Grafana Labs.
+
+## License
+
+Apache-2.0. See [LICENSE](./LICENSE).

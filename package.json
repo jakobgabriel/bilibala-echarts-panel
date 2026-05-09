@@ -1,7 +1,7 @@
 {
-  "name": "bilibala-echarts-panel",
-  "version": "2.3.0",
-  "description": "Echarts panel for grafana",
+  "name": "grafana-echarts",
+  "version": "2.4.0",
+  "description": "ECharts panel for Grafana 10–13 (fork of bilibala-echarts-panel)",
   "scripts": {
     "build": "webpack -c ./.config/webpack/webpack.config.ts --env production",
     "dev": "webpack -w -c ./.config/webpack/webpack.config.ts --env development",
@@ -16,12 +16,11 @@
     "e2e": "playwright test",
     "spellcheck": "cspell -c cspell.config.json \"**/*.{ts,tsx,js,go,md,mdx,yml,yaml,json,scss,css}\""
   },
-  "repository": "github:Billiballa/bilibala-echarts-panel",
-  "author": "bilibala",
+  "repository": "github:jakobgabriel/bilibala-echarts-panel",
+  "author": "jakobgabriel",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/Billiballa/bilibala-echarts-panel/issues",
-    "email": "wangqianxiang@outlook.com"
+    "url": "https://github.com/jakobgabriel/bilibala-echarts-panel/issues"
   },
   "dependencies": {
     "@emotion/css": "11.10.6",

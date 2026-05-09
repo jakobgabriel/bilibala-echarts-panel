@@ -6,6 +6,7 @@ import echarts from 'echarts';
 import { css, cx } from '@emotion/css';
 import { SimpleOptions, funcParams } from './types';
 import { shimData, shimTheme } from './compat';
+import { buildEChartsTheme, themeKey } from './grafanaTheme';
 
 // just comment it if don't need it
 import 'echarts-wordcloud';
@@ -78,7 +79,9 @@ export const SimplePanel: React.FC<PanelProps<SimpleOptions>> = ({ options, data
     if (echartRef.current) {
       chart?.clear();
       chart?.dispose();
-      setChart(echarts.init(echartRef.current, options.followTheme ? compatTheme.type : undefined));
+      const key = themeKey(theme);
+      echarts.registerTheme(key, buildEChartsTheme(theme));
+      setChart(echarts.init(echartRef.current, options.followTheme ? key : undefined));
     }
 
     return () => {
@@ -86,7 +89,7 @@ export const SimplePanel: React.FC<PanelProps<SimpleOptions>> = ({ options, data
       chart?.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [options.followTheme, compatTheme.type]);
+  }, [options.followTheme, theme]);
 
   useEffect(() => {
     chart?.resize();

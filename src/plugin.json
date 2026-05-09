@@ -1,15 +1,18 @@
 {
   "type": "panel",
-  "name": "Echarts",
-  "id": "bilibala-echarts-panel",
+  "name": "Grafana ECharts",
+  "id": "grafana-echarts",
+  "aliasIDs": ["bilibala-echarts-panel"],
   "info": {
-    "description": "Echarts panel for grafana",
+    "description": "ECharts panel for Grafana 10–13 (fork of bilibala-echarts-panel)",
     "author": {
-      "name": "bilibala",
-      "url": "https://github.com/Billiballa"
+      "name": "jakobgabriel",
+      "url": "https://github.com/jakobgabriel"
     },
     "keywords": [
-      "echarts"
+      "echarts",
+      "chart",
+      "visualization"
     ],
     "logos": {
       "small": "img/logo.png",
@@ -18,11 +21,15 @@
     "links": [
       {
         "name": "Website",
+        "url": "https://github.com/jakobgabriel/bilibala-echarts-panel"
+      },
+      {
+        "name": "Upstream",
         "url": "https://github.com/Billiballa/bilibala-echarts-panel"
       },
       {
         "name": "License",
-        "url": "https://github.com/Billiballa/bilibala-echarts-panel/blob/master/LICENSE"
+        "url": "https://github.com/jakobgabriel/bilibala-echarts-panel/blob/master/LICENSE"
       }
     ],
     "screenshots": [
