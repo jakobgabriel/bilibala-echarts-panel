@@ -1,9 +1,14 @@
-export const funcParams = 'data, theme, echartsInstance, echarts';
+export const funcParams = 'data, theme, echartsInstance, echarts, loadMap';
+
+export const DEFAULT_REMOTE_MAP_BASE =
+  'https://cdn.jsdelivr.net/npm/echarts-maps@latest';
 
 const funcBody = `const series = data.series.map((s) => {
-  const sData = s.fields.find((f) => f.type === 'number').values.buffer;
-  const sTime = s.fields.find((f) => f.type === 'time').values.buffer;
-
+  const valueField = s.fields.find((f) => f.type === 'number');
+  const timeField = s.fields.find((f) => f.type === 'time');
+  if (!valueField || !timeField) {
+    return null;
+  }
   return {
     name: s.name,
     type: 'line',
@@ -14,9 +19,9 @@ const funcBody = `const series = data.series.map((s) => {
     lineStyle: {
       width: 1,
     },
-    data: sData.map((d, i) => [sTime[i], d.toFixed(2)]),
+    data: valueField.values.map((d, i) => [timeField.values[i], Number(d).toFixed(2)]),
   };
-});
+}).filter(Boolean);
 
 const axisOption = {
   axisTick: {
@@ -71,19 +76,16 @@ return {
   series,
 };`;
 
-// const getOption = `function (${funcParams}) {
-//   ${funcBody}
-// }`
-// const funcBodyReg = /{\n([\S\s]*)\n}/;
-// const matchResult = getOption.match(funcBodyReg);
-// const funcBody = matchResult ? matchResult[1] : '';
-
 export interface SimpleOptions {
   followTheme: boolean;
   getOption: string;
+  allowRemoteMaps: boolean;
+  remoteMapBaseUrl: string;
 }
 
 export const defaults: SimpleOptions = {
   followTheme: false,
   getOption: funcBody,
+  allowRemoteMaps: false,
+  remoteMapBaseUrl: DEFAULT_REMOTE_MAP_BASE,
 };

@@ -42,6 +42,22 @@ jobs:
       - run: npm run test:ci
       - run: npm run build
 
+      - name: Bundle size guardrail
+        # Hard cap on dist/module.js so a future change can't silently
+        # double the panel's load weight. Current baseline is ~2.3 MiB
+        # (echarts core + echarts-gl/-liquidfill/-wordcloud + codemirror
+        # + jshint). The cap leaves ~700 KiB of headroom; bump it
+        # deliberately when adding a new add-on.
+        run: |
+          set -euo pipefail
+          size=$(wc -c <dist/module.js | tr -d ' ')
+          limit=$((3000 * 1024))
+          echo "module.js size: ${size} bytes (limit ${limit})"
+          if [ "$size" -gt "$limit" ]; then
+            echo "::error ::dist/module.js (${size} B) exceeds ${limit} B"
+            exit 1
+          fi
+
       - name: Validate plugin (@grafana/plugin-validator)
         run: scripts/validate.sh dist
 

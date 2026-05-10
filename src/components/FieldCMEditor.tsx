@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from 'react';
-// import { StandardEditorProps } from '@grafana/data';
 import { css } from '@emotion/css';
 import { funcParams } from '../types';
 import CodeMirror from 'codemirror';
+import { ECHARTS_HINTS, lookupHints } from './echartsHints';
 
 import 'codemirror/lib/codemirror.css';
 import 'codemirror/theme/seti.css';
@@ -25,9 +25,19 @@ import 'codemirror/keymap/sublime.js';
 
 import 'codemirror/addon/comment/comment.js';
 
-// import 'codemirror/addon/hint/show-hint.css';
-// import 'codemirror/addon/hint/show-hint.js';
-// import 'codemirror/addon/hint/javascript-hint.js';
+import 'codemirror/addon/lint/lint.css';
+import 'codemirror/addon/lint/lint.js';
+import 'codemirror/addon/lint/javascript-lint.js';
+
+import 'codemirror/addon/hint/show-hint.css';
+import 'codemirror/addon/hint/show-hint.js';
+import 'codemirror/addon/hint/javascript-hint.js';
+
+// The lint addon expects window.JSHINT to exist. JSHint is plain JS with
+// no ES module entry, so attach it explicitly here so the addon picks it up.
+import JSHINT from 'jshint';
+(window as unknown as { JSHINT: unknown }).JSHINT =
+  (JSHINT as { JSHINT?: unknown }).JSHINT ?? JSHINT;
 
 const getStyles = () => ({
   span: css`
@@ -37,10 +47,50 @@ const getStyles = () => ({
   `,
 });
 
-// interface Props extends StandardEditorProps<string> {
 interface Props {
   value: string;
   onChange: (value?: string) => void;
+}
+
+function customEchartsHint(cm: CodeMirror.Editor) {
+  const cur = cm.getCursor();
+  const token = cm.getTokenAt(cur);
+  // Walk back through `.`-separated identifiers preceding the cursor so we
+  // can resolve `data.series.` → children of `data.series`.
+  const lineUpToCursor = cm.getLine(cur.line).slice(0, cur.ch);
+  const trailing = lineUpToCursor.match(/([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\.?$/);
+  let prefix: string[] = [];
+  let typed = '';
+  if (trailing) {
+    const parts = trailing[1].split('.');
+    if (lineUpToCursor.endsWith('.')) {
+      prefix = parts;
+      typed = '';
+    } else {
+      prefix = parts.slice(0, -1);
+      typed = parts[parts.length - 1] ?? '';
+    }
+  }
+  const candidates = prefix.length === 0 ? ECHARTS_HINTS : lookupHints(prefix);
+  if (!candidates) {
+    // Fall back to the upstream JS keyword/identifier hinter so users
+    // still get something useful in unrelated positions.
+    const cmAny = CodeMirror as unknown as {
+      hint?: { javascript?: (cm: CodeMirror.Editor) => unknown };
+    };
+    return cmAny.hint && cmAny.hint.javascript ? cmAny.hint.javascript(cm) : undefined;
+  }
+  const list = Object.entries(candidates)
+    .filter(([name]) => !typed || name.startsWith(typed))
+    .map(([name, node]) => ({
+      text: name,
+      displayText: node.doc ? `${name} — ${node.doc}` : name,
+    }));
+  return {
+    list,
+    from: CodeMirror.Pos(cur.line, cur.ch - typed.length),
+    to: CodeMirror.Pos(cur.line, cur.ch + (token.string === '.' ? 0 : 0)),
+  };
 }
 
 export const FieldCMEditor: React.FC<Props> = ({ value, onChange }) => {
@@ -66,23 +116,51 @@ export const FieldCMEditor: React.FC<Props> = ({ value, onChange }) => {
       lineNumbers: true,
       inputStyle: 'contenteditable',
       foldGutter: true,
-      gutters: ['CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
+      gutters: ['CodeMirror-lint-markers', 'CodeMirror-linenumbers', 'CodeMirror-foldgutter'],
 
       matchBrackets: true,
       autoCloseBrackets: true,
       styleActiveLine: true,
 
+      // The lint addon's options are passed straight through to JSHint.
+      // CodeMirror's TS types only describe the addon-side flags, so cast
+      // to silence the structural mismatch.
+      lint: {
+        esversion: 11,
+        asi: true,
+        '-W040': true,
+        globals: {
+          data: false,
+          theme: false,
+          echartsInstance: false,
+          echarts: false,
+          loadMap: false,
+          window: false,
+          console: false,
+          fetch: false,
+          Promise: false,
+          Object: false,
+          Array: false,
+          Math: false,
+          Date: false,
+          JSON: false,
+          Number: false,
+          String: false,
+        },
+      } as unknown as CodeMirror.EditorConfiguration['lint'],
+
       extraKeys: {
         'Cmd-/': 'toggleComment',
         'Ctrl-/': 'toggleComment',
+        'Ctrl-Space': () => cm.showHint({ hint: customEchartsHint, completeSingle: false }),
       },
     });
 
-    cm.on('blur', (cm: any) => {
-      onChange(cm.doc.getValue());
+    cm.on('blur', (cm: CodeMirror.Editor) => {
+      onChange(cm.getDoc().getValue());
     });
 
-    // bad hack: try to fix display problems when CodeMoirror is initialized
+    // bad hack: try to fix display problems when CodeMirror is initialized
     setTimeout(() => cm.refresh(), 300);
 
     return () => {
