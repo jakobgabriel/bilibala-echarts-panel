@@ -83,12 +83,16 @@ jobs:
           BRANCH="auto-bump/v${NEXT}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          # Idempotent re-runs: reset the branch to the current bump, then
-          # force-push so the PR always reflects HEAD-of-master + bump.
+          # Idempotent re-runs: actions/checkout only fetches the
+          # checked-out ref, so the runner has no tracking ref for an
+          # existing remote `auto-bump/v*` branch — `--force-with-lease`
+          # would refuse to push without one. The `auto-bump/*` namespace
+          # is exclusively bot-managed (no human pushes there directly),
+          # so plain `--force` is the right knob.
           git switch -c "$BRANCH" 2>/dev/null || git switch "$BRANCH"
           git add package.json CHANGELOG.md
           git commit -m "chore(release): v${NEXT}"
-          git push --force-with-lease origin "$BRANCH"
+          git push --force origin "$BRANCH"
 
           format_list() { if [ -z "${1:-}" ]; then echo "_(none)_"; else printf '%s\n' "$1" | sed 's/^/- /'; fi; }
           BODY=$(cat <<EOF
