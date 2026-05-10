@@ -1,0 +1,123 @@
+name: Auto-bump
+
+# When master moves, classify the commits since the last release boundary
+# (most recent vX.Y.Z tag, falling back to the most recent
+# `chore(release):` commit) and — if at least one commit warrants a bump
+# under Conventional Commits — open a PR titled `chore(release): vX.Y.Z`
+# that updates package.json#version and stamps CHANGELOG.md's
+# `## Unreleased` heading with today's date.
+#
+# The maintainer reviews the inferred bump + the CHANGELOG diff, curates
+# the Unreleased prose if needed, and merges. The merge fires the
+# existing `release.yml` (gate-and-build), which constructs the vX.Y.Z
+# tag from the new package.json version exactly as it does today.
+#
+# Self-loop safe: the bump PR's merge commit is `chore(release): vX.Y.Z`,
+# which classifies as "no bump", so the next run of this workflow exits
+# with LEVEL=none.
+#
+# No third-party actions: only actions/checkout, actions/setup-node, and
+# the runner-bundled `gh` CLI.
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: auto-bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          # Use a token that can push and open PRs; the default
+          # GITHUB_TOKEN works for both with the permissions block above.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Install dependencies (semver only)
+        run: npm ci --no-audit --no-fund
+
+      - name: Compute next bump
+        id: plan
+        run: node scripts/bump.mjs >> "$GITHUB_OUTPUT"
+
+      - name: Skip when no bump-worthy commits since the last release
+        if: steps.plan.outputs.LEVEL == 'none'
+        run: |
+          echo "No feat:/fix:/perf: commits since ${{ steps.plan.outputs.BOUNDARY_KIND }} ${{ steps.plan.outputs.BOUNDARY_REF }}; nothing to bump."
+          exit 0
+
+      - name: Apply bump
+        if: steps.plan.outputs.LEVEL != 'none'
+        run: node scripts/bump.mjs --write
+
+      - name: Open or update bump PR
+        if: steps.plan.outputs.LEVEL != 'none'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEXT: ${{ steps.plan.outputs.NEXT }}
+          LEVEL: ${{ steps.plan.outputs.LEVEL }}
+          COMMIT_COUNT: ${{ steps.plan.outputs.COMMIT_COUNT }}
+          BOUNDARY_KIND: ${{ steps.plan.outputs.BOUNDARY_KIND }}
+          BOUNDARY_REF: ${{ steps.plan.outputs.BOUNDARY_REF }}
+          FEATS: ${{ steps.plan.outputs.FEATS }}
+          FIXES: ${{ steps.plan.outputs.FIXES }}
+          BREAKS: ${{ steps.plan.outputs.BREAKS }}
+        run: |
+          set -euo pipefail
+          BRANCH="auto-bump/v${NEXT}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # Idempotent re-runs: reset the branch to the current bump, then
+          # force-push so the PR always reflects HEAD-of-master + bump.
+          git switch -c "$BRANCH" 2>/dev/null || git switch "$BRANCH"
+          git add package.json CHANGELOG.md
+          git commit -m "chore(release): v${NEXT}"
+          git push --force-with-lease origin "$BRANCH"
+
+          format_list() { if [ -z "${1:-}" ]; then echo "_(none)_"; else printf '%s\n' "$1" | sed 's/^/- /'; fi; }
+          BODY=$(cat <<EOF
+          Auto-generated bump from \`scripts/bump.mjs\`.
+
+          | Field | Value |
+          | --- | --- |
+          | Bump level | \`${LEVEL}\` |
+          | Next version | \`v${NEXT}\` |
+          | Commits since boundary | ${COMMIT_COUNT} |
+          | Boundary | ${BOUNDARY_KIND} \`${BOUNDARY_REF}\` |
+
+          ### Breaking changes
+          $(format_list "${BREAKS}")
+
+          ### Features
+          $(format_list "${FEATS}")
+
+          ### Fixes / perf
+          $(format_list "${FIXES}")
+
+          ---
+
+          **Before merging**, curate the \`## Unreleased\` block in \`CHANGELOG.md\` (the script only stamps the date — bullet content is yours). On merge, \`release.yml\` will build both ECharts variants and create the \`v${NEXT}\` tag automatically.
+          EOF
+          )
+
+          if gh pr view "$BRANCH" --json number >/dev/null 2>&1; then
+            gh pr edit "$BRANCH" --title "chore(release): v${NEXT}" --body "$BODY"
+          else
+            gh pr create --base "${GITHUB_REF_NAME}" --head "$BRANCH" --title "chore(release): v${NEXT}" --body "$BODY"
+          fi

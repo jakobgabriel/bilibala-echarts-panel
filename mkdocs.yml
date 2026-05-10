@@ -24,6 +24,12 @@ theme:
 
 nav:
   - Home: index.md
+  - Install: install.md
+  - Editor contract: editor.md
+  - Cookbook: cookbook.md
+  - Dashboard variables: variables.md
+  - Maps: maps.md
+  - Troubleshooting: troubleshooting.md
 
 markdown_extensions:
   - admonition
