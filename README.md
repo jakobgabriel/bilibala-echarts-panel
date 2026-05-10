@@ -26,17 +26,7 @@ This fork's contribution is limited to:
 
 ## Compatibility
 
-The CI gate runs `@grafana/plugin-validator`, type-check, unit tests, and a smoke load against Grafana **11.6.14**, **12.4.3**, and **13.0.1**. Each panel-edit screenshot below is captured live from a fresh Grafana container of that version against the dashboard at `scripts/dashboards/community-echarts-panel-demo.json` and the same `dist/` artifact that's published in the GitHub Release.
-
-### Grafana 11.6.14
-
-![Community ECharts panel-edit view on Grafana 11.6.14](https://raw.githubusercontent.com/jakobgabriel/bilibala-echarts-panel/master/src/img/usage-edit-grafana-11.png)
-
-### Grafana 12.4.3
-
-![Community ECharts panel-edit view on Grafana 12.4.3](https://raw.githubusercontent.com/jakobgabriel/bilibala-echarts-panel/master/src/img/usage-edit-grafana-12.png)
-
-### Grafana 13.0.1
+The CI gate runs `@grafana/plugin-validator`, type-check, unit tests, and a smoke load against Grafana **11.6.14**, **12.4.3**, and **13.0.1**. The screenshot below is captured live from a fresh Grafana 13.0.1 container against the dashboard at `scripts/dashboards/community-echarts-panel-demo.json` and the same `dist/` artifact that's published in the GitHub Release; the panel-edit view on 11.x and 12.x is visually equivalent.
 
 ![Community ECharts panel-edit view on Grafana 13.0.1](https://raw.githubusercontent.com/jakobgabriel/bilibala-echarts-panel/master/src/img/usage-edit-grafana-13.png)
 

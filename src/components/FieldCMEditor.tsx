@@ -45,6 +45,25 @@ const getStyles = () => ({
     opacity: 0.6;
     font-size: 12px;
   `,
+  // Default height fits ~50 lines (CodeMirror's stock 300px default
+  // showed ~15 lines, so 50 lines ≈ 1000px); min-height is the same
+  // value so the resize handle can only drag taller, never below 50
+  // lines. The Grafana panel-options pane is vertically scrollable, so
+  // a tall editor just pushes the next field down — nothing overlaps.
+  wrap: css`
+    height: 1024px;
+    min-height: 1024px;
+    resize: vertical;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+
+    .CodeMirror {
+      flex: 1 1 auto;
+      height: auto;
+      min-height: 0;
+    }
+  `,
 });
 
 interface Props {
@@ -161,10 +180,25 @@ export const FieldCMEditor: React.FC<Props> = ({ value, onChange }) => {
       onChange(cm.getDoc().getValue());
     });
 
+    // Fill the wrap div so `resize: vertical` on the wrap is what
+    // controls the editor's height. Without this, .CodeMirror keeps its
+    // default 300px and the wrap's resize handle does nothing visible.
+    cm.setSize(null, '100%');
+
+    // Re-measure when the wrap is dragged taller. autoRefresh handles
+    // the initial layout pass; ResizeObserver covers user-driven resizes.
+    const wrap = editorRef.current?.parentElement;
+    let resizeObserver: ResizeObserver | undefined;
+    if (wrap && typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(() => cm.refresh());
+      resizeObserver.observe(wrap);
+    }
+
     // bad hack: try to fix display problems when CodeMirror is initialized
     setTimeout(() => cm.refresh(), 300);
 
     return () => {
+      resizeObserver?.disconnect();
       if (cm) {
         cm.toTextArea();
       }
@@ -174,7 +208,9 @@ export const FieldCMEditor: React.FC<Props> = ({ value, onChange }) => {
   return (
     <>
       <span className={styles.span}>{`function (${funcParams}) {`}</span>
-      <textarea ref={editorRef} value={value} />
+      <div className={styles.wrap}>
+        <textarea ref={editorRef} value={value} />
+      </div>
       <span className={styles.span}>{`}`}</span>
     </>
   );
