@@ -280,6 +280,23 @@ If your dashboard needs a region the bundle doesn't ship, toggle
 > directly; the legacy `.values.buffer` access pattern still works via
 > the compat shim (`src/compat.ts`) for saved panels.
 
+### 7. Dashboard variables
+
+A sixth positional parameter, `grafana`, exposes
+`{ variables, replace, setVariable, refresh }` so chart code can read the
+current variable values, run Grafana's `$var` / `${var:csv}` / `[[var]]`
+interpolation, push a value back into the URL, or fire a refresh:
+
+```js
+echartsInstance.off('click');
+echartsInstance.on('click', (p) => grafana.setVariable('region', p.name));
+return { title: { text: grafana.replace('Region: $region') }, /* … */ };
+```
+
+Existing 5-arg `getOption` bodies keep working unchanged. See the
+[docs site](https://jakobgabriel.github.io/bilibala-echarts-panel/#dashboard-variables)
+for the full cookbook.
+
 For a hosted reference and runtime cookbook, see the docs site:
 **https://jakobgabriel.github.io/bilibala-echarts-panel/**.
 

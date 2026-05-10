@@ -135,6 +135,7 @@ export const FieldCMEditor: React.FC<Props> = ({ value, onChange }) => {
           echartsInstance: false,
           echarts: false,
           loadMap: false,
+          grafana: false,
           window: false,
           console: false,
           fetch: false,

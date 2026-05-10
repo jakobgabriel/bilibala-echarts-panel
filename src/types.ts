@@ -1,4 +1,4 @@
-export const funcParams = 'data, theme, echartsInstance, echarts, loadMap';
+export const funcParams = 'data, theme, echartsInstance, echarts, loadMap, grafana';
 
 export const DEFAULT_REMOTE_MAP_BASE =
   'https://cdn.jsdelivr.net/npm/echarts-maps@latest';
