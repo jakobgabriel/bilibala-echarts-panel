@@ -84,6 +84,23 @@ export const ECHARTS_HINTS: Record<string, HintNode> = {
     doc:
       'async (name) — fetch and register a map JSON. Looks under the plugin\'s dist/map/ first; falls back to remoteMapBaseUrl if "Allow remote maps" is on.',
   },
+  grafana: {
+    doc: 'Helpers for reading and writing dashboard variables, and triggering refresh.',
+    children: {
+      variables: {
+        doc: 'Map of dashboard variable name → current value (string or string[] for multi-select).',
+      },
+      replace: {
+        doc: '(template, scopedVars?, format?) — interpolate $var / ${var:csv} / [[var]] in a string.',
+      },
+      setVariable: {
+        doc: '(name, value) — update a variable via URL state (string or string[]). Triggers the standard variable refresh chain.',
+      },
+      refresh: {
+        doc: '() — publish a dashboard-wide RefreshEvent (re-runs queries on every panel).',
+      },
+    },
+  },
 };
 
 // Resolve a dotted path like "data.series" or "theme.colors.text" against

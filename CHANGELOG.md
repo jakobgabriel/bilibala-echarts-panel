@@ -6,6 +6,16 @@ All notable changes to this project will be documented in this file.
 
 ### Highlights
 
+- **Dashboard variables exposed to `getOption`.** A new sixth positional
+  parameter `grafana` provides `{ variables, replace, setVariable, refresh }`:
+  read the current variable values as a flat map, run Grafana's standard
+  `$var` / `${var:csv}` / `[[var]]` interpolation against any string,
+  push a new value back into the URL (multi-value supported as `string[]`),
+  or fire a dashboard-wide `RefreshEvent`. Existing 5-arg `getOption`
+  bodies keep working — extra positional parameters that the body never
+  references are ignored. New `Ctrl-Space` autocomplete entries cover the
+  helpers; JSHint is configured to recognise `grafana` as a global.
+  Documented in `docs/index.md` § "Dashboard variables".
 - **Maps no longer auto-register.** Every JSON in `src/map/` was
   previously eagerly registered with ECharts at panel init via a
   `require.context` loop, even when no chart referenced it. The loop is

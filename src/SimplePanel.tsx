@@ -10,6 +10,7 @@ import { css, cx } from '@emotion/css';
 import { SimpleOptions, funcParams, DEFAULT_REMOTE_MAP_BASE } from './types';
 import { shimData, shimTheme } from './compat';
 import { buildEChartsTheme, themeKey } from './grafanaTheme';
+import { buildGrafanaHelpers } from './grafana';
 
 // just comment it if don't need it
 import 'echarts-wordcloud';
@@ -99,11 +100,22 @@ interface Tip {
   body: string;
 }
 
-export const SimplePanel: React.FC<PanelProps<SimpleOptions>> = ({ options, data, width, height }) => {
+export const SimplePanel: React.FC<PanelProps<SimpleOptions>> = ({
+  options,
+  data,
+  width,
+  height,
+  replaceVariables,
+}) => {
   const theme = useTheme2();
   const compatTheme = useMemo(() => shimTheme(theme), [theme]);
   const compatData = useMemo(() => shimData(data), [data]);
   const echartsTheme = useMemo(() => buildEChartsTheme(theme), [theme]);
+  // Rebuilt every render so `grafana.variables` always reflects the latest
+  // values from getTemplateSrv(); cheap (a getVariables + array reduce) and
+  // only ever read by the user's compiled fn via stateRef, so a fresh
+  // identity per render does not trigger any extra React work.
+  const grafana = buildGrafanaHelpers(replaceVariables);
 
   const echartRef = useRef<HTMLDivElement>(null);
   const [chart, setChart] = useState<echarts.ECharts>();
@@ -140,9 +152,9 @@ export const SimplePanel: React.FC<PanelProps<SimpleOptions>> = ({ options, data
   // a single stable debounced instance across renders (the previous code
   // recreated the debounce on every render, which silently broke it).
   // The ref is refreshed in an effect so we don't write to it during render.
-  const stateRef = useRef({ chart, compiled, compatData, compatTheme, data, loadMap });
+  const stateRef = useRef({ chart, compiled, compatData, compatTheme, data, loadMap, grafana });
   useEffect(() => {
-    stateRef.current = { chart, compiled, compatData, compatTheme, data, loadMap };
+    stateRef.current = { chart, compiled, compatData, compatTheme, data, loadMap, grafana };
   });
 
   const resetOption = useMemo(
@@ -190,7 +202,7 @@ export const SimplePanel: React.FC<PanelProps<SimpleOptions>> = ({ options, data
           }
           setTips(undefined);
           s.compiled
-            .fn(s.compatData, s.compatTheme, c, echarts, s.loadMap)
+            .fn(s.compatData, s.compatTheme, c, echarts, s.loadMap, s.grafana)
             .then((o) => {
               if (o == null) {
                 setTips({

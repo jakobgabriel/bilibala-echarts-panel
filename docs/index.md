@@ -37,7 +37,7 @@ allow_loading_unsigned_plugins = community-echarts-panel
 The **Echarts options** field is the body of:
 
 ```js
-async function (data, theme, echartsInstance, echarts, loadMap) {
+async function (data, theme, echartsInstance, echarts, loadMap, grafana) {
   // your code
   return /* an ECharts option object */;
 }
@@ -46,6 +46,9 @@ async function (data, theme, echartsInstance, echarts, loadMap) {
 * `return` an [ECharts option](https://echarts.apache.org/option.html) object.
 * The body is wrapped in an async IIFE, so `await` works (e.g. `await loadMap('world')`).
 * Throws are caught and shown in the panel.
+* `grafana` is the newest parameter; bodies written against the older 5-arg
+  signature continue to run unchanged — extra positional parameters that the
+  body never references are simply ignored by JavaScript.
 
 ### Parameters
 
@@ -56,6 +59,7 @@ async function (data, theme, echartsInstance, echarts, loadMap) {
 | `echartsInstance` | `ECharts` | The live instance. Use `.on/.off` for events. |
 | `echarts` | `typeof echarts` | The namespace (registerMap, graphic, ...). |
 | `loadMap` | `(name) => Promise<void>` | Lazy-load a map JSON. See [Maps](#maps). |
+| `grafana` | `{ variables, replace, setVariable, refresh }` | Read/write dashboard variables and trigger refresh. See [Dashboard variables](#dashboard-variables). |
 
 ### Editor features
 
@@ -115,6 +119,59 @@ return {
   series: [{ type: 'heatmap', data: points }],
 };
 ```
+
+## Dashboard variables
+
+The `grafana` parameter exposes the four most common variable interactions
+without having to import anything from the Grafana runtime yourself.
+
+### Reading the current values
+
+```js
+// grafana.variables is a flat { name: currentValue } map. Multi-select
+// variables come through as arrays; single-value as strings.
+return {
+  title: { text: `Region: ${grafana.variables.region ?? '(unset)'}` },
+  series: [/* ... */],
+};
+```
+
+### Interpolating templates
+
+```js
+// grafana.replace runs Grafana's standard $var / ${var:csv} / [[var]]
+// substitution. Use it for any string the chart will render.
+return {
+  title: { text: grafana.replace('Latency for $region — last $__interval') },
+  series: [/* ... */],
+};
+```
+
+### Driving variables from chart interactions
+
+```js
+// Click a slice → set a dashboard variable → every other panel re-queries.
+echartsInstance.off('click');
+echartsInstance.on('click', (params) => {
+  grafana.setVariable('region', params.name);
+});
+return { /* ... */ };
+```
+
+For multi-select variables, pass an array: `grafana.setVariable('servers', ['a', 'b'])`.
+
+### Manually triggering a refresh
+
+```js
+// Equivalent to clicking the dashboard refresh button. Rare — variable
+// changes already trigger a refresh — but useful for "refresh now" buttons
+// drawn with echarts.graphic.
+grafana.refresh();
+```
+
+> Use `current.value` (what queries see), not the visible label. For "All"
+> selections Grafana exposes `'$__all'` — pass it through unchanged; queries
+> already understand it.
 
 ## Maps
 
