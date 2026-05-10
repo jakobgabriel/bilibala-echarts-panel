@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## v2.8.0 (2026-05-10)
 ## v2.7.0 (2026-05-10)
 ### Highlights
 
