@@ -6,6 +6,30 @@ All notable changes to this project will be documented in this file.
 
 ### Highlights
 
+- **Auto-bump release flow.** A new `scripts/bump.mjs` reads
+  Conventional Commits since the last release boundary (most recent
+  `vX.Y.Z` tag, falling back to the most recent `chore(release):`
+  commit), classifies them under semver rules (`feat!`/`BREAKING CHANGE`
+  → major, `feat:` → minor, `fix:`/`perf:`/`revert:` → patch), and prints
+  the next version. `--write` updates `package.json#version` and stamps
+  `CHANGELOG.md`'s `## Unreleased` heading with today's UTC date. A new
+  `.github/workflows/auto-bump.yml` runs on master pushes, opens a
+  `chore(release): vX.Y.Z` PR via the runner-bundled `gh`, and is
+  self-loop safe (the bump PR's own merge commit doesn't itself trigger
+  another bump). The existing `release.yml` is unchanged — merging the
+  bump PR fires it as it does today, and the tag is created by
+  `softprops/action-gh-release` exactly as before.
+- **Docs site reorganized into a multi-page nav.** `docs/index.md` is
+  now a thin landing page; the runtime cookbook is split across
+  `install.md`, `editor.md`, `cookbook.md`, `variables.md`, `maps.md`,
+  and `troubleshooting.md`, each linked from the mkdocs Material
+  sidebar. The README's worked-examples block is replaced with a
+  single link to the Cookbook page (the README and the docs site no
+  longer carry duplicate snippets that drift out of sync). Lint /
+  autocomplete / async-IIFE behavior — previously buried in a bullet
+  list — are now first-class subsections in `editor.md`, and the
+  friendly error overlays added in this release cycle have a
+  "What's new" subsection in `troubleshooting.md`.
 - **Dashboard variables exposed to `getOption`.** A new sixth positional
   parameter `grafana` provides `{ variables, replace, setVariable, refresh }`:
   read the current variable values as a flat map, run Grafana's standard

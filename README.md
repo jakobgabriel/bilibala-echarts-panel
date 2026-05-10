@@ -170,63 +170,21 @@ Open a dashboard → **Add panel** → search for **Community ECharts**. The def
 
 ### 2. Edit the chart options
 
-The **Echarts options** editor in the panel options pane is the function body of `(data, theme, echartsInstance, echarts) => { ... }`. The function must `return` an [ECharts option object](https://echarts.apache.org/option.html). `data.series[i].fields[j].values` is a plain array; legacy `.values.buffer` access is also supported via the compat shim (`src/compat.ts`).
+The **Echarts options** editor in the panel options pane is the function body of `async (data, theme, echartsInstance, echarts, loadMap, grafana) => { ... }`. The function must `return` an [ECharts option object](https://echarts.apache.org/option.html). `data.series[i].fields[j].values` is a plain array; legacy `.values.buffer` access is also supported via the compat shim (`src/compat.ts`).
 
 See the [Compatibility](#compatibility) section above for what the panel-edit view looks like on each supported Grafana major.
 
+> **What you get in the editor.** JSHint marks syntax errors in the
+> gutter as you type. **Ctrl-Space** opens an autocomplete popup scoped
+> to the parameter surface (`data.series.`, `theme.colors.`,
+> `grafana.variables.`, …). The body is wrapped in an async IIFE, so
+> `await` works at the top level (e.g. `await loadMap('world')`).
+> Full reference: [Editor contract](https://jakobgabriel.github.io/bilibala-echarts-panel/editor/).
+
 ### 3. Worked examples
 
-#### Bar chart from a single time-series query
-
-```js
-const valueField = data.series[0].fields.find((f) => f.type === 'number');
-const timeField  = data.series[0].fields.find((f) => f.type === 'time');
-return {
-  xAxis: {
-    type: 'category',
-    data: timeField.values.map((t) => new Date(t).toLocaleTimeString()),
-  },
-  yAxis: { type: 'value' },
-  series: [{ type: 'bar', data: valueField.values }],
-};
-```
-
-#### Pie chart aggregated across series
-
-```js
-return {
-  tooltip: { trigger: 'item' },
-  legend: { bottom: 0 },
-  series: [
-    {
-      type: 'pie',
-      radius: '70%',
-      data: data.series.map((s) => ({
-        name: s.name,
-        value: s.fields
-          .find((f) => f.type === 'number')
-          .values.reduce((a, b) => a + b, 0),
-      })),
-    },
-  ],
-};
-```
-
-#### Heatmap from a multi-series time query
-
-```js
-const points = [];
-data.series.forEach((s, y) => {
-  const valueField = s.fields.find((f) => f.type === 'number');
-  valueField.values.forEach((v, x) => points.push([x, y, v]));
-});
-return {
-  xAxis: { type: 'category', data: data.series[0].fields.find((f) => f.type === 'time').values },
-  yAxis: { type: 'category', data: data.series.map((s) => s.name) },
-  visualMap: { min: 0, max: 100, calculable: true, orient: 'horizontal', bottom: 0 },
-  series: [{ type: 'heatmap', data: points }],
-};
-```
+The full cookbook (bar / pie / heatmap and more) lives on the docs site:
+[**Cookbook → community-echarts-panel docs**](https://jakobgabriel.github.io/bilibala-echarts-panel/cookbook/).
 
 ### 4. Follow Grafana theme
 
@@ -280,6 +238,8 @@ If your dashboard needs a region the bundle doesn't ship, toggle
 > directly; the legacy `.values.buffer` access pattern still works via
 > the compat shim (`src/compat.ts`) for saved panels.
 
+Full reference: [Maps → community-echarts-panel docs](https://jakobgabriel.github.io/bilibala-echarts-panel/maps/).
+
 ### 7. Dashboard variables
 
 A sixth positional parameter, `grafana`, exposes
@@ -293,9 +253,8 @@ echartsInstance.on('click', (p) => grafana.setVariable('region', p.name));
 return { title: { text: grafana.replace('Region: $region') }, /* … */ };
 ```
 
-Existing 5-arg `getOption` bodies keep working unchanged. See the
-[docs site](https://jakobgabriel.github.io/bilibala-echarts-panel/#dashboard-variables)
-for the full cookbook.
+Existing 5-arg `getOption` bodies keep working unchanged. Full reference:
+[Dashboard variables → community-echarts-panel docs](https://jakobgabriel.github.io/bilibala-echarts-panel/variables/).
 
 For a hosted reference and runtime cookbook, see the docs site:
 **https://jakobgabriel.github.io/bilibala-echarts-panel/**.
