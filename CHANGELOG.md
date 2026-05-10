@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## Unreleased
 
+## v2.7.0 (2026-05-10)
 ### Highlights
 
 - **Auto-bump release flow.** A new `scripts/bump.mjs` reads
