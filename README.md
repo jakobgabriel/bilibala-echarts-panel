@@ -261,7 +261,7 @@ return {
 
 Bundled names: `china`, `world`, `usa`, `germany`, `france`,
 `united-kingdom`, `italy`, `spain`, `brazil`, `india`, `japan`. Sources
-and licenses are in [`src/map/SOURCES.md`](./src/map/SOURCES.md);
+and licenses are in [`src/map/SOURCES.md`](https://github.com/jakobgabriel/bilibala-echarts-panel/blob/master/src/map/SOURCES.md);
 maintainers refresh them with `scripts/fetch-maps.sh`.
 
 To bring your own map: drop `YourMap.json` into `src/map/`, run
