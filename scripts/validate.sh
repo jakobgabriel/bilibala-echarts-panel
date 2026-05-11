@@ -21,6 +21,21 @@ cleanup() {
 trap cleanup EXIT
 
 if [ -d "$INPUT" ]; then
+  # Sanity-check: every map name the docs advertise must be present in
+  # dist/map/. Catches a botched CopyWebpackPlugin step or a maintainer
+  # forgetting to re-run scripts/fetch-maps.sh.
+  EXPECTED_MAPS=(china china-en world usa germany france united-kingdom italy spain brazil india japan)
+  missing=()
+  for name in "${EXPECTED_MAPS[@]}"; do
+    if [ ! -f "${INPUT}/map/${name}.json" ]; then
+      missing+=("$name")
+    fi
+  done
+  if [ "${#missing[@]}" -gt 0 ]; then
+    echo "validate.sh: missing maps in ${INPUT}/map/: ${missing[*]}" >&2
+    exit 3
+  fi
+
   # Package the dir into a temp zip with the plugin id as the top-level folder.
   PLUGIN_ID=$(node -p "require('./${INPUT}/plugin.json').id")
   TMP_ZIP="$(pwd)/.validator-input.zip"
